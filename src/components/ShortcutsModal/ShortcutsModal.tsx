@@ -1,9 +1,9 @@
-import { Modal } from '../common';
-import type { Hass, HassEntity } from '../../types/homeassistant';
-import { useTranslation } from '../../hooks/useTranslation';
-import type { SupportedLanguage } from '../../i18n/locales';
+import { Modal } from '@/components/common';
+import { useTranslation } from '@/hooks/useTranslation';
+import { getEntityState } from '@/hooks';
+import { useEntity, useHass } from '@/contexts';
 import './ShortcutsModal.scss';
-import { SHORTCUT_START_CLEANING_ICON_SVG } from '../../constants/icons';
+import { SHORTCUT_START_CLEANING_ICON_SVG } from '@/constants/icons';
 
 interface ShortcutData {
   name: string;
@@ -13,20 +13,25 @@ interface ShortcutData {
 interface ShortcutsModalProps {
   opened: boolean;
   onClose: () => void;
-  entity: HassEntity;
-  hass: Hass;
-  language?: SupportedLanguage;
 }
 
-export function ShortcutsModal({ opened, onClose, entity, hass, language }: ShortcutsModalProps) {
-  const { t } = useTranslation(language);
+export function ShortcutsModal({ opened, onClose }: ShortcutsModalProps) {
+  const { t } = useTranslation();
+  const entity = useEntity();
+  const hass = useHass();
   const shortcutsObj = (entity.attributes.shortcuts || {}) as Record<string, ShortcutData>;
   const shortcuts = Object.entries(shortcutsObj).map(([id, data]) => ({
     id: parseInt(id),
     ...data,
   }));
 
+  // Check vacuum entity availability
+  const vacuumState = getEntityState(hass, entity.entity_id);
+  const isDisabled = vacuumState.disabled;
+
   const handleShortcutClick = (shortcutId: number) => {
+    if (isDisabled) return;
+
     hass.callService('dreame_vacuum', 'vacuum_start_shortcut', {
       entity_id: entity.entity_id,
       shortcut_id: shortcutId,
@@ -50,8 +55,9 @@ export function ShortcutsModal({ opened, onClose, entity, hass, language }: Shor
             {shortcuts.map((shortcut) => (
               <button
                 key={shortcut.id}
-                className="shortcuts-modal__item"
+                className={`shortcuts-modal__item ${isDisabled ? 'shortcuts-modal__item--disabled' : ''}`}
                 onClick={() => handleShortcutClick(shortcut.id)}
+                disabled={isDisabled}
               >
                 <span className="shortcuts-modal__item-icon">{SHORTCUT_START_CLEANING_ICON_SVG}</span>
                 <span className="shortcuts-modal__item-name">{shortcut.name}</span>

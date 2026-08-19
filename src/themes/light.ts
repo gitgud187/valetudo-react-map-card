@@ -19,12 +19,12 @@ export const lightTheme: Theme = {
     // Accent colors
     accentColor: '#007aff',
     accentColorHover: '#0051d5',
-    accentBg: '#e3f2fd',
-    accentBgHover: '#bbdefb',
-    accentBgSecondary: '#999999',
-    accentBgSecondaryHover: '#666666',
-    accentBgTransparent: 'rgba(0, 122, 255, 0.15)',
-    accentShadow: 'rgba(0, 122, 255, 0.3)',
+    accentBg: 'rgba(0, 122, 255, 0.2)',
+    accentBgHover: 'rgba(0, 122, 255, 0.3)',
+    accentBgSecondary: 'rgba(0, 122, 255, 0.1)',
+    accentBgSecondaryHover: 'rgba(0, 122, 255, 0.2)',
+    accentBgTransparent: 'rgba(0, 122, 255, 0.2)',
+    accentShadow: 'rgba(0, 122, 255, 0.4)',
     accentColorShadowColor: 'rgba(0, 122, 255, 0.25)',
 
     // State colors

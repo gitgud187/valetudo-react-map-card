@@ -9,17 +9,18 @@ import type {
   SUCTION_LEVEL,
   CLEANING_ROUTE,
   MOP_PAD_HUMIDITY,
+  WATER_VOLUME,
   VACUUM_MODE_TYPE,
   SELF_CLEAN_FREQUENCY,
-} from '../constants';
+} from '@/constants';
 
-// Extract the type from const objects
-export type CleaningMode = (typeof CLEANING_MODE)[keyof typeof CLEANING_MODE];
+export type VacuumCleaningMode = (typeof CLEANING_MODE)[keyof typeof CLEANING_MODE];
 export type CleanGeniusMode = (typeof CLEANGENIUS_MODE)[keyof typeof CLEANGENIUS_MODE];
 export type CleanGeniusState = (typeof CLEANGENIUS_STATE)[keyof typeof CLEANGENIUS_STATE];
 export type SuctionLevel = (typeof SUCTION_LEVEL)[keyof typeof SUCTION_LEVEL];
 export type CleaningRoute = (typeof CLEANING_ROUTE)[keyof typeof CLEANING_ROUTE];
 export type MopPadHumidity = (typeof MOP_PAD_HUMIDITY)[keyof typeof MOP_PAD_HUMIDITY];
+export type WaterVolume = (typeof WATER_VOLUME)[keyof typeof WATER_VOLUME];
 export type VacuumModeType = (typeof VACUUM_MODE_TYPE)[keyof typeof VACUUM_MODE_TYPE];
 export type SelfCleanFrequency = (typeof SELF_CLEAN_FREQUENCY)[keyof typeof SELF_CLEAN_FREQUENCY];
 
@@ -40,11 +41,9 @@ export interface VacuumMap {
   recovery_map?: string[];
 }
 
-// Vacuum entity attributes interface
 export interface VacuumEntityAttributes {
-  // Cleaning modes
-  cleaning_mode?: CleaningMode;
-  cleaning_mode_list?: CleaningMode[];
+  cleaning_mode?: VacuumCleaningMode;
+  cleaning_mode_list?: VacuumCleaningMode[];
   cleangenius?: CleanGeniusState;
   cleangenius_list?: CleanGeniusState[];
   cleangenius_mode?: CleanGeniusMode;
@@ -59,7 +58,6 @@ export interface VacuumEntityAttributes {
   wetness_level?: number;
   mop_pad_humidity?: MopPadHumidity;
   mop_pad_humidity_list?: MopPadHumidity[];
-  custom_mopping_mode?: boolean;
 
   // Cleaning route
   cleaning_route?: CleaningRoute;
@@ -111,4 +109,25 @@ export interface SetValueData extends ServiceCallData {
 
 export interface VacuumCleanSegmentData extends ServiceCallData {
   segments: number[];
+}
+
+// Per-room cleaning configuration for Customize mode
+export interface RoomCleaningConfig {
+  roomId: number;
+  cleaningMode: number; // 0=Vacuum, 1=Mop, 2=Vac & Mop
+  suctionLevel: number; // 0-3 (Quiet, Standard, Strong, Turbo)
+  mopWetness: number; // 1-3 (Slightly dry, Standard, Wet)
+  cycles: number; // 1-3
+}
+
+// Customize cleaning state
+export interface CustomizeCleaningState {
+  enabled: boolean;
+  roomConfigs: Map<number, RoomCleaningConfig>;
+}
+
+// Persisted customize config structure
+export interface PersistedCustomizeConfig {
+  version: number;
+  rooms: Record<number, Omit<RoomCleaningConfig, 'roomId'>>;
 }

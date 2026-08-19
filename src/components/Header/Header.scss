@@ -1,6 +1,9 @@
+@use '../../styles/rtl' as *;
+
 .header {
   padding: 1.25rem 1.25rem 0.625rem;
   text-align: center;
+  padding-bottom: unset;
 
   &__top {
     display: flex;
@@ -11,34 +14,8 @@
   &__title-wrapper {
     flex: 1;
     text-align: center;
-  }
 
-  &__restrictions-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    background: none;
-    border: none;
-    color: var(--text-secondary, #666);
-    cursor: pointer;
-    border-radius: 0.5rem;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-
-    @media (hover: hover) {
-      &:hover {
-        background: var(--hover-bg, rgba(0, 0, 0, 0.05));
-        color: var(--danger, #f44336);
-      }
-    }
-
-    &--active {
-      color: #f44336;
-      background: rgba(244, 67, 54, 0.12);
-    }
+    @include padding-start(2rem); // Balance for settings button
   }
 
   &__settings-btn {
@@ -54,7 +31,6 @@
     cursor: pointer;
     border-radius: 0.5rem;
     transition: all 0.2s ease;
-    flex-shrink: 0;
 
     svg {
       width: 1.25rem;
@@ -127,6 +103,7 @@
 
   &__stat-icon {
     display: flex;
+    color: var(--accent-color);
 
     &--cleaning-time,
     &--area {
@@ -141,5 +118,10 @@
   &__stat-value {
     display: flex;
     font-weight: 500;
+    unicode-bidi: plaintext;
+
+    &--cleaning-time {
+      unicode-bidi: unset;
+    }
   }
 }

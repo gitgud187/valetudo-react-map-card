@@ -1,20 +1,45 @@
+@use '../../styles/rtl' as *;
+
 .vacuum-map {
   position: relative;
   margin: 0 1.25rem;
   border-radius: 0.9375rem;
   overflow: hidden;
   background: var(--surface-bg, #fff);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   box-shadow: 0 0.25rem 0.9375rem var(--card-shadow, rgba(0, 0, 0, 0.1));
   min-height: 18.75rem;
 
-  &__image {
+  // Landscape orientation: constrain map height to fit within viewport
+  // This prevents scrolling on tablets/displays in landscape mode
+  // 280px accounts for: header (~80px) + controls (~150px) + padding (~50px)
+  @media (orientation: landscape) {
+    max-height: calc(100vh - 280px);
+    max-height: calc(100dvh - 280px); // Use dynamic viewport height where supported
+    min-height: min(18.75rem, calc(100vh - 280px)); // Don't enforce min-height larger than available space
+  }
+
+  // Locked state: allow page scrolling through the map
+  &--locked {
+    .react-transform-wrapper {
+      touch-action: pan-y;
+    }
+  }
+
+  // Content wrapper for the zoomable map area
+  &__content {
+    position: relative;
+    display: inline-block;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+  }
+
+  &__image {
+    display: block;
+    width: 100%;
+    height: auto;
     border-radius: 0.9375rem;
+    user-select: none;
+    -webkit-user-drag: none;
   }
 
   // Dark mode filter for map image
@@ -51,7 +76,9 @@
 
   &__cycles {
     position: absolute;
-    right: 1rem;
+
+    @include position-end(1rem);
+
     bottom: 1rem;
     width: 2.5rem;
     height: 2.5rem;
@@ -74,17 +101,24 @@
     box-shadow: 0 0.125rem 0.75rem rgba(0, 122, 255, 0.3);
   }
 
+  // Zone container for click handling inside TransformComponent
+  &__zone-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: auto;
+  }
+
   &__zone-handle {
     position: absolute;
-    width: 1.5rem;
-    height: 1.5rem;
     background: #007aff;
     border: 0.125rem solid white;
-    border-radius: 50%;
-    cursor: pointer;
+    border-radius: 0.25rem;
     pointer-events: auto;
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
+    transition: background 0.2s ease;
     z-index: 10;
     touch-action: none;
 
@@ -99,42 +133,53 @@
 
     &:hover {
       background: #0051d5;
-      transform: scale(1.2);
     }
 
     &:active {
-      transform: scale(0.9);
+      background: #003d99;
     }
 
-    &--tl {
-      top: -0.75rem;
-      left: -0.75rem;
-      cursor: nwse-resize;
+    // Horizontal strips (top/bottom edges)
+    &--top,
+    &--bottom {
+      width: 2.5rem;
+      height: 0.5rem;
+      left: 50%;
+      cursor: ns-resize;
     }
 
-    &--tr {
-      top: -0.75rem;
-      right: -0.75rem;
-      cursor: nesw-resize;
+    &--top {
+      top: -0.25rem;
     }
 
-    &--bl {
-      bottom: -0.75rem;
-      left: -0.75rem;
-      cursor: nesw-resize;
+    &--bottom {
+      bottom: -0.25rem;
     }
 
-    &--br {
-      bottom: -0.75rem;
-      right: -0.75rem;
-      cursor: nwse-resize;
+    // Vertical strips (left/right edges)
+    &--left,
+    &--right {
+      width: 0.5rem;
+      height: 2.5rem;
+      top: 50%;
+      cursor: ew-resize;
+    }
+
+    &--left {
+      @include position-start(-0.25rem);
+    }
+
+    &--right {
+      @include position-end(-0.25rem);
     }
   }
 
   &__zone-clear {
     position: absolute;
     top: -0.75rem;
-    right: -0.75rem;
+
+    @include position-end(-0.75rem);
+
     width: 1.5rem;
     height: 1.5rem;
     border-radius: 50%;
@@ -149,17 +194,17 @@
     align-items: center;
     justify-content: center;
     box-shadow: 0 0.125rem 0.5rem rgba(255, 59, 48, 0.4);
-    transition: all 0.2s ease;
+    transition: background 0.2s ease;
     line-height: 1;
     padding: 0;
+    z-index: 11;
 
     &:hover {
       background: #ff1f0f;
-      transform: scale(1.1);
     }
 
     &:active {
-      transform: scale(0.95);
+      background: #cc0000;
     }
   }
 
@@ -169,26 +214,36 @@
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: auto;
+    pointer-events: none; // Let clicks pass through to segments
+
+    // Segments inside should be clickable
+    path {
+      pointer-events: auto;
+    }
   }
 
   &__room-segment {
     cursor: pointer;
     transition: all 0.2s ease;
 
-    &:hover {
-      fill: var(--accent-bg-transparent, rgba(212, 175, 55, 0.2));
-      stroke: var(--accent-color, #d4af37);
+    // Hover state for unselected rooms - use neutral white highlight
+    &:hover:not(&--selected) {
+      fill: rgba(255, 255, 255, 0.15);
+      stroke: rgba(255, 255, 255, 0.9);
       stroke-width: 3;
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
     }
 
+    // Selected state - use accent color
     &--selected {
-      fill: var(--accent-bg-transparent, rgba(212, 175, 55, 0.3));
+      fill: var(--accent-bg, rgba(212, 175, 55, 0.3));
       stroke: var(--accent-color, #d4af37);
       stroke-width: 3;
 
+      // Hover on selected - slightly brighter accent
       &:hover {
-        fill: var(--accent-bg-transparent, rgba(212, 175, 55, 0.4));
+        fill: var(--accent-bg-hover, rgba(212, 175, 55, 0.45));
+        filter: drop-shadow(0 0 6px var(--accent-color-shadow-color, rgba(212, 175, 55, 0.5)));
       }
     }
   }

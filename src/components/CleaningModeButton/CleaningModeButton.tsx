@@ -1,15 +1,17 @@
 import './CleaningModeButton.scss';
-import { useTranslation } from '../../hooks/useTranslation';
-import type { SupportedLanguage } from '../../i18n/locales';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useMachineState } from '@/contexts';
 import {
   SHORTCUTS_ICON_SVG,
   VACUUM_MOP_ICON_SVG,
   VACUUM_ICON_SVG,
   MOP_ICON_SVG,
   MOP_AFTER_VACUUM_ICON_SVG,
-} from '../../constants/icons';
+  CUSTOMIZE_ICON_SVG,
+} from '@/constants/icons';
 import type { ReactElement } from 'react';
-import { CLEANGENIUS_MODE, CLEANING_MODE } from '../../constants';
+import type { RepeatCount } from '@/hooks/useCardUIState';
+import { CLEANGENIUS_MODE, CLEANING_MODE } from '@/constants';
 
 interface CleaningModeButtonProps {
   cleaningMode: string;
@@ -17,8 +19,8 @@ interface CleaningModeButtonProps {
   cleangenius: string;
   onClick: () => void;
   onShortcutsClick?: () => void;
-  disabled?: boolean;
-  language?: SupportedLanguage;
+  onRepeatClick?: () => void;
+  repeatCount?: RepeatCount;
 }
 
 export function CleaningModeButton({
@@ -27,27 +29,23 @@ export function CleaningModeButton({
   cleangenius,
   onClick,
   onShortcutsClick,
-  disabled = false,
-  language,
+  onRepeatClick,
+  repeatCount = 1,
 }: CleaningModeButtonProps) {
-  const { t } = useTranslation(language);
+  const { t } = useTranslation();
+  const { phase, isCustomizedCleaning } = useMachineState();
+
+  const isInCleaningSession = phase === 'cleaning' || phase === 'paused';
+  const secondaryDisabled = isInCleaningSession || isCustomizedCleaning;
+
   const getIcon = (mode: string): ReactElement => {
-    if (mode === CLEANING_MODE.SWEEPING) {
-      return VACUUM_ICON_SVG;
+    if (isCustomizedCleaning) {
+      return CUSTOMIZE_ICON_SVG;
     }
-
-    if (mode === CLEANING_MODE.MOPPING) {
-      return MOP_ICON_SVG;
-    }
-
-    if (mode === CLEANING_MODE.SWEEPING_AND_MOPPING) {
-      return VACUUM_MOP_ICON_SVG;
-    }
-
-    if (mode === CLEANING_MODE.MOPPING_AFTER_SWEEPING) {
-      return MOP_AFTER_VACUUM_ICON_SVG;
-    }
-
+    if (mode === CLEANING_MODE.SWEEPING) return VACUUM_ICON_SVG;
+    if (mode === CLEANING_MODE.MOPPING) return MOP_ICON_SVG;
+    if (mode === CLEANING_MODE.SWEEPING_AND_MOPPING) return VACUUM_MOP_ICON_SVG;
+    if (mode === CLEANING_MODE.MOPPING_AFTER_SWEEPING) return MOP_AFTER_VACUUM_ICON_SVG;
     return VACUUM_MOP_ICON_SVG;
   };
 
@@ -58,6 +56,7 @@ export function CleaningModeButton({
   };
 
   const getCustomCleaningFriendlyName = (mode: string): string => {
+    if (isCustomizedCleaning) return t('customize.title');
     if (mode === CLEANING_MODE.MOPPING_AFTER_SWEEPING) return t('cleaning_mode_button.mop_after_vac');
     if (mode === CLEANING_MODE.SWEEPING_AND_MOPPING) return t('cleaning_mode_button.vac_and_mop');
     if (mode === CLEANING_MODE.SWEEPING) return t('cleaning_mode_button.vacuum');
@@ -76,13 +75,14 @@ export function CleaningModeButton({
     onShortcutsClick?.();
   };
 
+  const handleRepeatClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRepeatClick?.();
+  };
+
   return (
     <div className="cleaning-mode-button-wrapper">
-      <button
-        onClick={onClick}
-        className={`cleaning-mode-button ${disabled ? 'cleaning-mode-button--disabled' : ''}`}
-        disabled={disabled}
-      >
+      <button onClick={onClick} className="cleaning-mode-button">
         <div className="cleaning-mode-button__content">
           <span className="cleaning-mode-button__icon">{getIcon(cleaningMode)}</span>
           <span className="cleaning-mode-button__text">
@@ -94,12 +94,22 @@ export function CleaningModeButton({
         </div>
         <span className="cleaning-mode-button__arrow">›</span>
       </button>
+      {onRepeatClick && (
+        <button
+          className={`cleaning-mode-button-wrapper__repeats ${secondaryDisabled ? 'cleaning-mode-button-wrapper__repeats--disabled' : ''}`}
+          onClick={handleRepeatClick}
+          title={t('cleaning_mode_button.repeats_tooltip')}
+          disabled={secondaryDisabled}
+        >
+          x{repeatCount}
+        </button>
+      )}
       {cleangenius === 'Off' && onShortcutsClick && (
         <button
-          className="cleaning-mode-button-wrapper__shortcuts"
+          className={`cleaning-mode-button-wrapper__shortcuts ${secondaryDisabled ? 'cleaning-mode-button-wrapper__shortcuts--disabled' : ''}`}
           onClick={handleShortcutsClick}
           title={t('cleaning_mode_button.view_shortcuts')}
-          disabled={disabled}
+          disabled={secondaryDisabled}
         >
           {SHORTCUTS_ICON_SVG}
         </button>

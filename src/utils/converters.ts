@@ -1,12 +1,7 @@
-/**
- * Utility functions for converting between display values and service values
- * Handles snake_case conversion for Home Assistant service calls
- */
+import { SERVICE_VALUE, CLEANING_MODE, CLEANGENIUS_MODE, CLEANGENIUS_STATE, SELF_CLEAN_FREQUENCY } from '@/constants';
+import type { VacuumCleaningMode, CleanGeniusMode, CleanGeniusState, SelfCleanFrequency } from '@/types/vacuum';
 
-import { SERVICE_VALUE, CLEANING_MODE, CLEANGENIUS_MODE, CLEANGENIUS_STATE, SELF_CLEAN_FREQUENCY } from '../constants';
-import type { CleaningMode, CleanGeniusMode, CleanGeniusState, SelfCleanFrequency } from '../types/vacuum';
-
-export function convertCleaningModeToService(mode: CleaningMode): string {
+export function convertCleaningModeToService(mode: VacuumCleaningMode): string {
   switch (mode) {
     case CLEANING_MODE.SWEEPING:
       return SERVICE_VALUE.CLEANING_MODE.SWEEPING;
@@ -18,6 +13,8 @@ export function convertCleaningModeToService(mode: CleaningMode): string {
       return SERVICE_VALUE.CLEANING_MODE.MOPPING_AFTER_SWEEPING;
     case CLEANING_MODE.MAPPING:
       return SERVICE_VALUE.CLEANING_MODE.MAPPING;
+    case CLEANING_MODE.CUSTOMIZE:
+      return SERVICE_VALUE.CLEANING_MODE.CUSTOMIZE;
     default:
       return mode;
   }
@@ -62,18 +59,6 @@ export function convertSelfCleanFrequencyToService(frequency: SelfCleanFrequency
 
 export function convertToLowerCase(value: string): string {
   return value.toLowerCase();
-}
-
-export function buildEntityId(baseEntityId: string, suffix: string): string {
-  return `select.${baseEntityId}_${suffix}`;
-}
-
-export function buildSwitchEntityId(baseEntityId: string, suffix: string): string {
-  return `switch.${baseEntityId}_${suffix}`;
-}
-
-export function buildNumberEntityId(baseEntityId: string, suffix: string): string {
-  return `number.${baseEntityId}_${suffix}`;
 }
 
 export function extractBaseEntityId(entityId: string): string {

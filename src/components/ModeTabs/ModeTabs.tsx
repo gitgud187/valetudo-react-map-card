@@ -1,36 +1,35 @@
-import type { CleaningMode } from '../../types/homeassistant';
-import type { SupportedLanguage } from '../../i18n/locales';
-import { useTranslation } from '../../hooks';
+import type { CleaningSelectionMode } from '@/types/homeassistant';
+import { useTranslation } from '@/hooks';
+import { useMachineState } from '@/contexts';
 import './ModeTabs.scss';
-import type { ReactElement } from 'react';
 
 interface ModeTabsProps {
-  selectedMode: CleaningMode;
-  onModeChange: (mode: CleaningMode) => void;
-  disabled?: boolean;
-  language?: SupportedLanguage;
+  selectedMode: CleaningSelectionMode;
+  onModeChange: (mode: CleaningSelectionMode) => void;
 }
 
-export function ModeTabs({ selectedMode, onModeChange, disabled = false, language = 'en' }: ModeTabsProps) {
-  const { t } = useTranslation(language);
+export function ModeTabs({ selectedMode, onModeChange }: ModeTabsProps) {
+  const { t } = useTranslation();
+  const { phase } = useMachineState();
 
-  const modes: { value: CleaningMode; label: string; icon?: ReactElement }[] = [
+  const isDisabled = phase === 'cleaning' || phase === 'paused';
+
+  const modes: { value: CleaningSelectionMode; label: string }[] = [
     { value: 'room', label: t('modes.room') },
     { value: 'all', label: t('modes.all') },
     { value: 'zone', label: t('modes.zone') },
   ];
 
   return (
-    <div className={`mode-tabs ${disabled ? 'mode-tabs--disabled' : ''}`}>
+    <div className={`mode-tabs ${isDisabled ? 'mode-tabs--disabled' : ''}`}>
       {modes.map((mode) => (
         <button
           key={mode.value}
           onClick={() => onModeChange(mode.value)}
           className={`mode-tabs__button ${selectedMode === mode.value ? 'mode-tabs__button--active' : ''}`}
-          disabled={disabled}
+          disabled={isDisabled}
         >
           {mode.label}
-          {mode.icon && <span className="mode-tabs__button-icon">{mode.icon}</span>}
         </button>
       ))}
     </div>

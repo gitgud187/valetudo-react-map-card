@@ -4,14 +4,15 @@
  */
 
 import { useCallback } from 'react';
-import type { Hass } from '../types/homeassistant';
-import { SERVICE_DOMAIN, SERVICE_ACTION } from '../constants';
-import type { SelectOptionData, SetValueData, VacuumCleanSegmentData } from '../types/vacuum';
+import type { Hass } from '@/types/homeassistant';
+import { SERVICE_DOMAIN, SERVICE_ACTION } from '@/constants';
+import type { SelectOptionData, SetValueData, VacuumCleanSegmentData } from '@/types/vacuum';
+import { logger } from '@/utils/logger';
 
 export function useHomeAssistantServices(hass: Hass) {
   const callService = useCallback(
     (domain: string, service: string, data: Record<string, unknown>) => {
-      console.debug('[HA Service]', domain, service, data);
+      logger.debug('HA', 'Service call:', domain, service, data);
       hass.callService(domain, service, data);
     },
     [hass]
@@ -19,7 +20,7 @@ export function useHomeAssistantServices(hass: Hass) {
 
   const setSelectOption = useCallback(
     (entityId: string, option: string) => {
-      console.debug('[HA Select]', entityId, '→', option);
+      logger.debug('HA', 'Select:', entityId, '→', option);
       const data: SelectOptionData = {
         entity_id: entityId,
         option,
@@ -31,7 +32,7 @@ export function useHomeAssistantServices(hass: Hass) {
 
   const setSwitch = useCallback(
     (entityId: string, turnOn: boolean) => {
-      console.debug('[HA Switch]', entityId, '→', turnOn ? 'ON' : 'OFF');
+      logger.debug('HA', 'Switch:', entityId, '→', turnOn ? 'ON' : 'OFF');
       const action = turnOn ? SERVICE_ACTION.TURN_ON : SERVICE_ACTION.TURN_OFF;
       callService(SERVICE_DOMAIN.SWITCH, action, { entity_id: entityId });
     },
@@ -40,7 +41,7 @@ export function useHomeAssistantServices(hass: Hass) {
 
   const setNumber = useCallback(
     (entityId: string, value: number) => {
-      console.debug('[HA Number]', entityId, '→', value);
+      logger.debug('HA', 'Number:', entityId, '→', value);
       const data: SetValueData = {
         entity_id: entityId,
         value,
@@ -52,7 +53,7 @@ export function useHomeAssistantServices(hass: Hass) {
 
   const startVacuum = useCallback(
     (entityId: string) => {
-      console.debug('[HA Vacuum] Start', entityId);
+      logger.debug('HA', 'Vacuum Start:', entityId);
       callService(SERVICE_DOMAIN.VACUUM, SERVICE_ACTION.START, { entity_id: entityId });
     },
     [callService]
@@ -60,7 +61,7 @@ export function useHomeAssistantServices(hass: Hass) {
 
   const returnToBase = useCallback(
     (entityId: string) => {
-      console.debug('[HA Vacuum] Return to base', entityId);
+      logger.debug('HA', 'Vacuum Return to base:', entityId);
       callService(SERVICE_DOMAIN.VACUUM, SERVICE_ACTION.RETURN_TO_BASE, { entity_id: entityId });
     },
     [callService]
@@ -68,12 +69,29 @@ export function useHomeAssistantServices(hass: Hass) {
 
   const cleanSegments = useCallback(
     (entityId: string, segments: number[]) => {
-      console.debug('[HA Vacuum] Clean segments', entityId, segments);
+      logger.debug('HA', 'Vacuum Clean segments:', entityId, segments);
       const data: VacuumCleanSegmentData = {
         entity_id: entityId,
         segments,
       };
       callService(SERVICE_DOMAIN.DREAME_VACUUM, SERVICE_ACTION.VACUUM_CLEAN_SEGMENT, data);
+    },
+    [callService]
+  );
+
+  /**
+   * Set vacuum fan speed (suction level).
+   * This works during cleaning when the select entity is unavailable.
+   * @param entityId - The vacuum entity ID (e.g., 'vacuum.dima')
+   * @param fanSpeed - The fan speed level (e.g., 'quiet', 'standard', 'strong', 'turbo')
+   */
+  const setFanSpeed = useCallback(
+    (entityId: string, fanSpeed: string) => {
+      logger.debug('HA', 'Vacuum Set fan speed:', entityId, '→', fanSpeed);
+      callService(SERVICE_DOMAIN.VACUUM, SERVICE_ACTION.SET_FAN_SPEED, {
+        entity_id: entityId,
+        fan_speed: fanSpeed,
+      });
     },
     [callService]
   );
@@ -85,6 +103,7 @@ export function useHomeAssistantServices(hass: Hass) {
     startVacuum,
     returnToBase,
     cleanSegments,
+    setFanSpeed,
     callService,
   };
 }

@@ -1,8 +1,7 @@
 import { Settings } from 'lucide-react';
-import type { HassEntity } from '../../types/homeassistant';
-import type { SupportedLanguage } from '../../i18n/locales';
-import { useTranslation } from '../../hooks';
-import { getAttr, isNumber } from '../../utils';
+import { useTranslation } from '@/hooks';
+import { useAreaUnit, useEntity, useMachineState } from '@/contexts';
+import { getAttr, isNumber } from '@/utils';
 import './Header.scss';
 import {
   BATTERY_EMPTY_ICON_SVG,
@@ -11,18 +10,19 @@ import {
   BATTERY_FULL_ICON_SVG,
   HISTORY_ICON_SVG,
   AREA_ICON_SVG,
-} from '../../constants/icons';
+} from '@/constants/icons';
 
 interface HeaderProps {
-  entity: HassEntity;
   deviceName: string;
   onSettingsClick?: () => void;
-  language?: SupportedLanguage;
 }
 
-export function Header({ entity, deviceName, onSettingsClick, language }: HeaderProps) {
-  const { t } = useTranslation(language);
-  const statusText = getAttr(entity.attributes.status, entity.state);
+export function Header({ deviceName, onSettingsClick }: HeaderProps) {
+  const { t } = useTranslation();
+  const areaUnit = useAreaUnit();
+  const entity = useEntity();
+  const { rawState } = useMachineState();
+  const statusText = rawState.charAt(0).toUpperCase() + rawState.slice(1).replace(/_/g, ' ');
   const cleanedArea = getAttr(entity.attributes.cleaned_area, 0);
   const cleaningTime = getAttr(entity.attributes.cleaning_time, 0);
   const batteryLevel = getAttr(entity.attributes.battery, 0);
@@ -39,8 +39,6 @@ export function Header({ entity, deviceName, onSettingsClick, language }: Header
 
   const progress = getAttr(entity.attributes.cleaning_progress, 0) || getAttr(entity.attributes.drying_progress, 0);
 
-  const status = entity.attributes.status;
-
   return (
     <div className="header">
       <div className="header__top">
@@ -55,7 +53,7 @@ export function Header({ entity, deviceName, onSettingsClick, language }: Header
         )}
       </div>
 
-      {status !== 'Sleeping' && progress > 0 && (
+      {rawState !== 'sleeping' && progress > 0 && (
         <div className="header__progress">
           <div className="header__progress-bar">
             <div className="header__progress-fill" style={{ width: `${progress}%` }} />
@@ -65,14 +63,14 @@ export function Header({ entity, deviceName, onSettingsClick, language }: Header
 
       <div className="header__stats">
         <div className="header__stat">
-          <span className="header__stat-icon--area">{AREA_ICON_SVG}</span>
+          <span className="header__stat-icon">{AREA_ICON_SVG}</span>
           <span className="header__stat-value">
-            {cleanedArea} {t('units.square_meters')}
+            {cleanedArea} {areaUnit}
           </span>
         </div>
         <div className="header__stat">
-          <span className="header__stat-icon--cleaning-time">{HISTORY_ICON_SVG}</span>
-          <span className="header__stat-value">
+          <span className="header__stat-icon">{HISTORY_ICON_SVG}</span>
+          <span className="header__stat-value--cleaning-time">
             {cleaningTime} {t('units.minutes')}
           </span>
         </div>

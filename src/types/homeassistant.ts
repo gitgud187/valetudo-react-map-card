@@ -1,4 +1,4 @@
-import type { CustomThemeConfig } from '../themes';
+import type { CustomThemeConfig } from '@/themes';
 
 export interface HassEntity {
   entity_id: string;
@@ -9,8 +9,11 @@ export interface HassEntity {
     cleaned_area?: number;
     cleaning_time?: number;
     entity_picture?: string;
-    rooms?: Record<string, Room[]>;
+    // Note: rooms structure varies between vacuum entity (Record<string, Room[]>)
+    // and camera entity (Record<string, Room>)
+    rooms?: Record<string, Room[] | Room>;
     selected_map?: string;
+    capabilities?: string[];
     [key: string]: unknown;
   };
   context: {
@@ -47,6 +50,8 @@ export interface Room {
   y?: number;
 }
 
+export type MapOverlay = 'vacuum' | 'charger' | 'room_labels';
+
 export interface HassConfig {
   entity: string;
   map_entity?: string;
@@ -54,22 +59,47 @@ export interface HassConfig {
   type: string;
   theme?: 'light' | 'dark' | 'custom';
   custom_theme?: CustomThemeConfig;
-  language?: 'en' | 'de' | 'ru' | 'pl' | 'it' | 'nl' | 'es' | 'zh';
-  default_mode?: CleaningMode;
+  language?: 'en' | 'de' | 'ru' | 'pl' | 'it' | 'nl' | 'es' | 'zh' | 'he' | 'fr_FR' | 'ko';
+  default_mode?: CleaningSelectionMode;
   default_room_view?: RoomViewMode;
+  buttons?: ButtonConfig[];
+  map_overlays?: MapOverlay[];
+}
+
+export interface HassUnitSystem {
+  area?: string;
+  length?: string;
+  temperature?: string;
+  mass?: string;
+  volume?: string;
+  pressure?: string;
+  wind_speed?: string;
+  accumulated_precipitation?: string;
 }
 
 export interface Hass {
   states: Record<string, HassEntity>;
   callService: (domain: string, service: string, data?: Record<string, unknown>) => Promise<void>;
   hassUrl: (path: string) => string;
+  config?: {
+    unit_system?: HassUnitSystem;
+  };
   /** Authenticated fetch — passes HA auth token automatically */
   fetchWithAuth: (url: string, init?: RequestInit) => Promise<Response>;
 }
 
-export type CleaningMode = 'room' | 'all' | 'zone' | 'restrictions';
+export type CleaningSelectionMode = 'room' | 'all' | 'zone';
+export type CleaningMode = CleaningSelectionMode | 'restrictions';
 export type CleaningStrategy = 'CleanGenius' | 'Custom';
 export type RoomViewMode = 'map' | 'list';
+
+// Button configuration types
+export type StopAction = 'stop' | 'stop_and_dock';
+
+export interface ButtonConfig {
+  type: 'stop'; // Extensible for future button types
+  action: StopAction;
+}
 
 export interface RoomPosition {
   id: number;
@@ -90,4 +120,15 @@ export interface Zone {
 export interface CalibrationPoint {
   vacuum: { x: number; y: number };
   map: { x: number; y: number };
+}
+
+/**
+ * Position of the vacuum or charger on the map
+ * x, y: vacuum coordinates (need conversion via calibration points)
+ * a: angle in degrees (0 = east, 90 = south, 180 = west, 270 = north)
+ */
+export interface VacuumPosition {
+  x: number;
+  y: number;
+  a: number;
 }

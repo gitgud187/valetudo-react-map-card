@@ -1,0 +1,131 @@
+.customize-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  // Room Accordions
+  &__room-accordions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  // Badges shown in accordion header
+  &__badges {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    background: var(--accent-bg);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent-color);
+    text-transform: uppercase;
+
+    &:nth-child(3) {
+      text-transform: unset;
+    }
+  }
+
+  // Room settings content inside accordion
+  &__room-settings-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  // Setting groups
+  &__setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  &__setting-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  &__options {
+    display: flex;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    padding-top: 0.5rem;
+    gap: 2rem;
+
+    &--pills {
+      gap: 1rem;
+    }
+  }
+
+  &__option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  &__option-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+
+  &__pill {
+    padding: 0.375rem 0.75rem;
+    border: 1.5px solid var(--surface-border);
+    border-radius: 1.25rem;
+    background: var(--surface-bg);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-width: 3.5rem;
+
+    &:hover {
+      border-color: var(--accent-color);
+      background: var(--accent-bg-secondary);
+    }
+
+    &--selected {
+      border-color: var(--accent-color);
+      background: var(--accent-color);
+      color: var(--accent-bg-secondary);
+      color: white;
+    }
+
+    &--cycle {
+      font-weight: 600;
+    }
+  }
+
+  // Wetness slider wrapper
+  &__wetness-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}

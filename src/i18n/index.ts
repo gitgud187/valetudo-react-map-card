@@ -1,4 +1,5 @@
 import { locales, type SupportedLanguage } from './locales';
+import { logger } from '@/utils/logger';
 
 // Type for nested translation objects
 type TranslationValue = string | { [key: string]: TranslationValue };
@@ -42,7 +43,7 @@ export function createTranslator(language: SupportedLanguage = 'en') {
     const value = getNestedValue(translations, key);
 
     if (typeof value !== 'string') {
-      console.warn(`Translation key not found: ${key}`);
+      logger.warn(`Translation key not found: ${key}`);
       return key;
     }
 
@@ -68,4 +69,16 @@ export function getRoomCountTranslation(t: ReturnType<typeof createTranslator>, 
 
   const key = count === 1 ? 'actions.clean_rooms' : 'actions.clean_rooms_plural';
   return t(key, { count: String(count) });
+}
+
+/**
+ * Languages that use Right-to-Left text direction
+ */
+export const RTL_LANGUAGES: SupportedLanguage[] = ['he'];
+
+/**
+ * Check if a language uses Right-to-Left text direction
+ */
+export function isRtlLanguage(lang: SupportedLanguage): boolean {
+  return RTL_LANGUAGES.includes(lang);
 }

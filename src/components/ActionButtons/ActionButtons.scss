@@ -12,7 +12,7 @@
     background: var(--accent-bg); // Darker obsidian base
     border: 0.0625rem solid var(--accent-bg); // Your base color as the "frame"
     border-radius: 0.875rem;
-    padding: 0.875rem;
+    padding: 0.575rem;
     font-size: 0.9375rem;
     font-weight: 600;
     cursor: pointer;
@@ -42,7 +42,7 @@
   }
 
   &__clean {
-    color: var(--text-primary-invert);
+    color: white;
     background: var(--accent-color);
   }
   &__pause {

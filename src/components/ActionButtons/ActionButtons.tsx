@@ -1,39 +1,33 @@
-import type { CleaningMode } from '../../types/homeassistant';
-import type { SupportedLanguage } from '../../i18n/locales';
-import { useTranslation } from '../../hooks';
+import type { CleaningSelectionMode, StopAction } from '@/types/homeassistant';
+import { useTranslation, useButtonConfig } from '@/hooks';
+import { useMachineState } from '@/contexts';
 import { CleanButton, PauseButton, ResumeButton, StopButton, DockButton } from './components';
 import './ActionButtons.scss';
 
 interface ActionButtonsProps {
-  selectedMode: CleaningMode;
+  selectedMode: CleaningSelectionMode;
   selectedRoomsCount: number;
-  isRunning: boolean;
-  isPaused: boolean;
-  isDocked: boolean;
-  onClean?: () => void;
+  onClean: () => void;
   onPause: () => void;
   onResume: () => void;
-  onStop: () => void;
+  onStop: (action: StopAction) => void;
   onDock: () => void;
-  language?: SupportedLanguage;
-  disabled?: boolean;
 }
 
 export function ActionButtons({
   selectedMode,
   selectedRoomsCount,
-  isRunning,
-  isPaused,
-  isDocked,
   onClean,
   onPause,
   onResume,
   onStop,
   onDock,
-  language = 'en',
-  disabled = false,
 }: ActionButtonsProps) {
-  const { t, getRoomCountTranslation } = useTranslation(language);
+  const { t, getRoomCountTranslation } = useTranslation();
+  const { getStopAction } = useButtonConfig();
+  const { phase, controls } = useMachineState();
+
+  const stopAction = getStopAction();
 
   const getCleanButtonText = (): string => {
     switch (selectedMode) {
@@ -48,33 +42,30 @@ export function ActionButtons({
     }
   };
 
-  const cleanButtonText = getCleanButtonText();
+  const handleStop = () => onStop(stopAction);
 
-  // Running state - show pause and stop
-  if (isRunning && !isPaused && !isDocked) {
+  if (phase === 'cleaning') {
     return (
       <div className="action-buttons">
-        <PauseButton onClick={onPause} language={language} />
-        <StopButton onClick={onStop} language={language} />
+        <PauseButton onClick={onPause} disabled={!controls.canPause} />
+        <StopButton onClick={handleStop} action={stopAction} disabled={!controls.canStop} />
       </div>
     );
   }
 
-  // Paused state - show resume and stop
-  if (isPaused) {
+  if (phase === 'paused') {
     return (
       <div className="action-buttons">
-        <ResumeButton onClick={onResume} language={language} />
-        <StopButton onClick={onStop} language={language} />
+        <ResumeButton onClick={onResume} disabled={!controls.canResume} />
+        <StopButton onClick={handleStop} action={stopAction} disabled={!controls.canStop} />
       </div>
     );
   }
 
-  // Idle/docked state - show clean and dock
   return (
     <div className="action-buttons">
-      <CleanButton onClick={onClean} text={cleanButtonText} disabled={disabled} />
-      <DockButton onClick={onDock} language={language} disabled={disabled} />
+      <CleanButton onClick={onClean} text={getCleanButtonText()} disabled={!controls.canStartCleaning} />
+      <DockButton onClick={onDock} disabled={!controls.canDock} />
     </div>
   );
 }

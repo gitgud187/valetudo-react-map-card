@@ -1,18 +1,16 @@
 import { Check } from 'lucide-react';
-import type { Room } from '../../types/homeassistant';
-import type { SupportedLanguage } from '../../i18n/locales';
-import { useTranslation } from '../../hooks';
+import type { Room } from '@/types/homeassistant';
+import { useTranslation } from '@/hooks';
 import './RoomListView.scss';
 
 interface RoomListViewProps {
   rooms: Room[];
   selectedRooms: Map<number, string>;
   onRoomToggle: (roomId: number, roomName: string) => void;
-  language?: SupportedLanguage;
 }
 
-export function RoomListView({ rooms, selectedRooms, onRoomToggle, language }: RoomListViewProps) {
-  const { t } = useTranslation(language);
+export function RoomListView({ rooms, selectedRooms, onRoomToggle }: RoomListViewProps) {
+  const { t } = useTranslation();
 
   if (rooms.length === 0) {
     return (

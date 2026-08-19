@@ -1,12 +1,13 @@
 import './CircularButton.scss';
 
 interface CircularButtonProps {
-  icon: string | React.ReactNode;
+  icon: React.ReactNode;
   label?: string;
   selected?: boolean;
   onClick?: () => void;
   size?: 'small' | 'medium' | 'large';
   iconStyle?: React.CSSProperties;
+  disabled?: boolean;
 }
 
 export function CircularButton({
@@ -15,29 +16,22 @@ export function CircularButton({
   selected = false,
   onClick,
   size = 'medium',
-  iconStyle = {},
+  iconStyle,
+  disabled = false,
 }: CircularButtonProps) {
-  const isSvg = typeof icon === 'string' && icon.trim().startsWith('<svg');
-
   return (
-    <div className="circular-button">
+    <div className={`circular-button ${disabled ? 'circular-button--disabled' : ''}`}>
       <button
         className={`circular-button__circle circular-button__circle--${size} ${
           selected ? 'circular-button__circle--selected' : ''
         }`}
         onClick={onClick}
+        disabled={disabled}
       >
         {typeof icon === 'string' ? (
-          isSvg ? (
-            <span
-              className="circular-button__icon circular-button__icon--svg"
-              dangerouslySetInnerHTML={{ __html: icon }}
-            />
-          ) : (
-            <span className="circular-button__icon" style={iconStyle}>
-              {icon}
-            </span>
-          )
+          <span className="circular-button__icon" style={iconStyle}>
+            {icon}
+          </span>
         ) : (
           icon
         )}

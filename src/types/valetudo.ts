@@ -1,6 +1,6 @@
 import type { CustomThemeConfig } from '../themes';
 import type { SupportedLanguage } from '../i18n/locales';
-import type { CleaningMode } from './homeassistant';
+import type { CleaningSelectionMode } from './homeassistant';
 
 /**
  * Config for the valetudo-vacuum-map-card custom element.
@@ -41,7 +41,7 @@ export interface ValetudoHassConfig {
   theme?: 'light' | 'dark' | 'custom';
   custom_theme?: CustomThemeConfig;
   language?: SupportedLanguage;
-  default_mode?: CleaningMode;
+  default_mode?: CleaningSelectionMode;
   /** Map visual settings */
   robot_size?: number; // multiplier, default 1.0
   charger_size?: number; // multiplier, default 1.0

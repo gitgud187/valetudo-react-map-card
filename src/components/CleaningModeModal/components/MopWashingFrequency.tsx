@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { CircularButton } from '../../common';
-import type { SelfCleanFrequency } from '../../../types/vacuum';
-import { getSelfCleanFrequencyIcon, convertSelfCleanFrequencyToService } from '../../../utils';
+import { useState, useEffect } from 'react';
+import { CircularButton } from '@/components/common';
+import type { SelfCleanFrequency } from '@/types/vacuum';
+import { getSelfCleanFrequencyIcon, convertSelfCleanFrequencyToService } from '@/utils';
+import { useAreaUnit, useIsRtl } from '@/contexts';
 
 type TranslateFunction = (key: string, params?: Record<string, string | number>) => string;
 
@@ -21,23 +22,20 @@ interface MopWashingFrequencyProps {
   areaEntityId: string;
   timeEntityId: string;
   t?: TranslateFunction;
+  frequencyDisabled?: boolean;
+  areaDisabled?: boolean;
+  timeDisabled?: boolean;
 }
 
-/**
- * Get translated frequency label
- */
+const FREQUENCY_KEYS: Record<string, string> = {
+  'By room': 'mop_washing_frequency.by_room',
+  'By area': 'mop_washing_frequency.by_area',
+  'By time': 'mop_washing_frequency.by_time',
+};
+
 function getFrequencyLabel(freq: string, t?: TranslateFunction): string {
   if (!t) return freq;
-  switch (freq) {
-    case 'By room':
-      return t('mop_washing_frequency.by_room');
-    case 'By area':
-      return t('mop_washing_frequency.by_area');
-    case 'By time':
-      return t('mop_washing_frequency.by_time');
-    default:
-      return freq;
-  }
+  return FREQUENCY_KEYS[freq] ? t(FREQUENCY_KEYS[freq]) : freq;
 }
 
 export function MopWashingFrequency({
@@ -56,25 +54,45 @@ export function MopWashingFrequency({
   areaEntityId,
   timeEntityId,
   t,
+  frequencyDisabled = false,
+  areaDisabled = false,
+  timeDisabled = false,
 }: MopWashingFrequencyProps) {
   const [localArea, setLocalArea] = useState(selfCleanArea);
   const [localTime, setLocalTime] = useState(selfCleanTime);
+  const areaUnit = useAreaUnit();
+  const isRtl = useIsRtl();
 
-  const selfCleanAreaPercent = ((localArea - selfCleanAreaMin) / (selfCleanAreaMax - selfCleanAreaMin)) * 100;
-  const selfCleanTimePercent = ((localTime - selfCleanTimeMin) / (selfCleanTimeMax - selfCleanTimeMin)) * 100;
+  // Sync local state when props change (e.g., entity update from HA)
+  useEffect(() => {
+    setLocalArea(selfCleanArea);
+  }, [selfCleanArea]);
 
-  // Calculate tooltip position accounting for thumb width (20px = 1.25rem)
-  const thumbWidth = 20; // in pixels
-  const areaTooltipLeft = `calc(${selfCleanAreaPercent}% + ${thumbWidth / 2 - (selfCleanAreaPercent * thumbWidth) / 100}px)`;
-  const timeTooltipLeft = `calc(${selfCleanTimePercent}% + ${thumbWidth / 2 - (selfCleanTimePercent * thumbWidth) / 100}px)`;
+  useEffect(() => {
+    setLocalTime(selfCleanTime);
+  }, [selfCleanTime]);
 
-  // Get translated unit strings
-  const squareMetersUnit = t ? t('units.square_meters') : 'm²';
+  const isByArea = selfCleanFrequency === 'By area';
+  const isByTime = selfCleanFrequency === 'By time';
+  const showSlider = isByArea || isByTime;
+
+  const currentValue = isByArea ? localArea : localTime;
+  const currentMin = isByArea ? selfCleanAreaMin : selfCleanTimeMin;
+  const currentMax = isByArea ? selfCleanAreaMax : selfCleanTimeMax;
+  const percent = ((currentValue - currentMin) / (currentMax - currentMin)) * 100;
+  const thumbWidth = 20;
+  const tooltipPosition = `calc(${percent}% + ${thumbWidth / 2 - (percent * thumbWidth) / 100}px)`;
+
   const minutesShortUnit = t ? t('units.minutes_short') : 'm';
+  const gradientDirection = isRtl ? 'to left' : 'to right';
+
+  // Slider disabled state is independent of frequency buttons
+  const isSliderDisabled = isByArea ? areaDisabled : timeDisabled;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isSliderDisabled) return;
     const value = parseInt(e.target.value);
-    if (selfCleanFrequency === 'By area') {
+    if (isByArea) {
       setLocalArea(value);
     } else {
       setLocalTime(value);
@@ -82,59 +100,61 @@ export function MopWashingFrequency({
   };
 
   const handleCommit = () => {
-    if (selfCleanFrequency === 'By area' && localArea !== selfCleanArea) {
+    if (isSliderDisabled) return;
+    if (isByArea && localArea !== selfCleanArea) {
       onChangeArea(areaEntityId, localArea);
-    } else if (selfCleanFrequency === 'By time' && localTime !== selfCleanTime) {
+    } else if (isByTime && localTime !== selfCleanTime) {
       onChangeTime(timeEntityId, localTime);
     }
   };
 
   return (
     <>
-      {/* Frequency type selector */}
-      <div className="cleaning-mode-modal__horizontal-scroll">
+      <div
+        className={`cleaning-mode-modal__horizontal-scroll ${frequencyDisabled ? 'cleaning-mode-modal__horizontal-scroll--disabled' : ''}`}
+      >
         {selfCleanFrequencyList.map((freq, idx) => (
           <div key={idx} className="cleaning-mode-modal__mode-option">
             <CircularButton
               size="small"
               selected={freq === selfCleanFrequency}
               onClick={() =>
+                !frequencyDisabled &&
                 onSelectFrequency(frequencyEntityId, convertSelfCleanFrequencyToService(freq as SelfCleanFrequency))
               }
               icon={getSelfCleanFrequencyIcon(freq as SelfCleanFrequency)}
+              disabled={frequencyDisabled}
             />
             <span className="cleaning-mode-modal__mode-option-label">{getFrequencyLabel(freq, t)}</span>
           </div>
         ))}
       </div>
 
-      {/* Slider for By area or By time */}
-      {(selfCleanFrequency === 'By area' || selfCleanFrequency === 'By time') && (
-        <div className="cleaning-mode-modal__slider-container" style={{ marginTop: '1rem' }}>
+      {showSlider && (
+        <div
+          className={`cleaning-mode-modal__slider-container ${isSliderDisabled ? 'cleaning-mode-modal__slider-container--disabled' : ''}`}
+          style={{ marginTop: '1rem' }}
+        >
           <div className="cleaning-mode-modal__slider-wrapper">
             <input
               type="range"
-              min={selfCleanFrequency === 'By area' ? selfCleanAreaMin : selfCleanTimeMin}
-              max={selfCleanFrequency === 'By area' ? selfCleanAreaMax : selfCleanTimeMax}
-              value={selfCleanFrequency === 'By area' ? localArea : localTime}
+              min={currentMin}
+              max={currentMax}
+              value={currentValue}
               onChange={handleChange}
               onMouseUp={handleCommit}
               onTouchEnd={handleCommit}
+              disabled={isSliderDisabled}
               className="cleaning-mode-modal__slider"
               style={{
-                background:
-                  selfCleanFrequency === 'By area'
-                    ? `linear-gradient(to right, var(--accent-bg-secondary) 0%, var(--accent-bg-secondary) ${selfCleanAreaPercent}%, var(--accent-bg-secondary-hover) ${selfCleanAreaPercent}%, var(--accent-bg-secondary-hover) 100%)`
-                    : `linear-gradient(to right, var(--accent-bg-secondary) 0%, var(--accent-bg-secondary) ${selfCleanTimePercent}%, var(--accent-bg-secondary-hover) ${selfCleanTimePercent}%, var(--accent-bg-secondary-hover) 100%)`,
+                background: `linear-gradient(${gradientDirection}, var(--accent-bg-secondary) 0%, var(--accent-bg-secondary) ${percent}%, var(--accent-bg-secondary-hover) ${percent}%, var(--accent-bg-secondary-hover) 100%)`,
               }}
             />
             <div
               className="cleaning-mode-modal__slider-tooltip"
-              style={{
-                left: selfCleanFrequency === 'By area' ? areaTooltipLeft : timeTooltipLeft,
-              }}
+              style={isRtl ? { right: tooltipPosition } : { left: tooltipPosition }}
             >
-              {selfCleanFrequency === 'By area' ? `${localArea}${squareMetersUnit}` : `${localTime}${minutesShortUnit}`}
+              {isByArea ? `${localArea}${areaUnit}` : `${localTime}${minutesShortUnit}`}
             </div>
           </div>
         </div>

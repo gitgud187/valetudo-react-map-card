@@ -8,13 +8,15 @@ import { ActionButtons } from '../ActionButtons';
 import { Toast, Modal } from '../common';
 import { RestrictionsToolbar } from '../RestrictionsToolbar/RestrictionsToolbar';
 import { VACUUM_MOP_ICON_SVG } from '../../constants';
-import { useVacuumCardState, useToast, useTheme } from '../../hooks';
+import { useCardUIState, useToast, useTheme } from '../../hooks';
+import { VacuumCardProvider } from '../../contexts';
 import { useValetudoServices } from '../../hooks/useValetudoServices';
 import { useValetudoMap } from '../../hooks/useValetudoMap';
 import { useRestrictions, buildRestrictionsPayload } from '../../hooks/useRestrictions';
 import { deriveValetudoEntityIds } from '../../types/valetudo';
 import { useTranslation } from '../../hooks/useTranslation';
 import type { Hass, RoomPosition } from '../../types/homeassistant';
+import type { SupportedLanguage } from '../../i18n/locales';
 import type { ValetudoHassConfig } from '../../types/valetudo';
 import './ValetudoVacuumCard.scss';
 
@@ -49,7 +51,7 @@ function parseSegments(attributes: Record<string, unknown>): RoomPosition[] {
 
 export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
   const entityIds = deriveValetudoEntityIds(config);
-  const language = (config.language ?? 'en') as Parameters<typeof useTranslation>[0];
+  const language = (config.language ?? 'en') as SupportedLanguage;
   const { t } = useTranslation(language);
   const themeType = config.theme ?? 'light';
 
@@ -93,7 +95,7 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
     setSelectedMode,
     handleModeChange,
     handleRoomToggle,
-  } = useVacuumCardState({ defaultMode: config.default_mode });
+  } = useCardUIState({ defaultMode: config.default_mode });
 
   const { toast, showToast, hideToast } = useToast();
   const [configErrorModal, setConfigErrorModal] = useState<'restrictions' | 'mapping' | null>(null);
@@ -170,6 +172,7 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
     });
 
   const state = vacuumEntity?.state ?? 'docked';
+  const [isRestrictionsMode, setIsRestrictionsMode] = useState(false);
   const { mapData, error: mapError, refetch: refetchMap } = useValetudoMap(hass, entityIds.map, state);
   const [cleanIterations, setCleanIterations] = useState(1);
 
@@ -178,10 +181,9 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
     if (state === 'docked' || state === 'idle') {
       setSelectedMode('all');
       setSelectedZone(null);
+      setIsRestrictionsMode(false);
     }
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const isRestrictionsMode = selectedMode === 'restrictions';
 
   const { restrictions, setTool, addWall, addZone, selectItem, deleteSelected, markSaved } = useRestrictions({
     mapData,
@@ -297,8 +299,6 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
     '    payload: \'{"action": "start_mapping"}\'';
 
   const isRunning = ['cleaning', 'returning'].includes(state);
-  const isPaused = state === 'paused';
-  const isDocked = state === 'docked';
 
   const deviceName = config.title ?? (vacuumEntity.attributes.friendly_name as string | undefined) ?? 'Valetudo Robot';
 
@@ -317,188 +317,184 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
   };
 
   const handleRestrictionsToggle = () => {
-    setSelectedMode(isRestrictionsMode ? 'all' : 'restrictions');
-    setSelectedZone(null);
+    const next = !isRestrictionsMode;
+    setIsRestrictionsMode(next);
+    if (!next) {
+      setSelectedMode('all');
+      setSelectedZone(null);
+    }
   };
 
   const controlsDisabled = isRunning;
 
   return (
-    <div ref={containerRef} className={`dreame-vacuum-card dreame-vacuum-card--${theme.name} valetudo-vacuum-card`}>
-      <div className="dreame-vacuum-card__container">
-        <ValetudoHeader
-          vacuumEntity={vacuumEntity}
-          batteryEntity={batteryEntity}
-          currentStatsAreaEntity={currentStatsAreaEntity}
-          currentStatsTimeEntity={currentStatsTimeEntity}
-          deviceName={deviceName}
-          restrictionsMode={isRestrictionsMode}
-          onRestrictionsToggle={handleRestrictionsToggle}
-          onSettingsClick={() => setSettingsOpen(true)}
-          language={language}
-        />
-
-        {mapData ? (
-          <ValetudoMapCanvas
-            mapData={mapData}
-            mode={selectedMode}
-            selectedRooms={selectedMode === 'room' ? selectedRooms : undefined}
-            zone={selectedMode === 'zone' ? selectedZone : null}
-            onZoneChange={setSelectedZone}
-            restrictions={isRestrictionsMode ? restrictions : undefined}
-            displayRestrictions={!isRestrictionsMode ? restrictions.savedDisplay : undefined}
-            onRestrictionDrawn={isRestrictionsMode ? handleRestrictionDrawn : undefined}
-            onRestrictionSelect={isRestrictionsMode ? selectItem : undefined}
-            iterations={cleanIterations}
-            onIterationsChange={isRestrictionsMode ? undefined : setCleanIterations}
+    <VacuumCardProvider hass={hass} entity={vacuumEntity} config={config} language={language}>
+      <div ref={containerRef} className={`dreame-vacuum-card dreame-vacuum-card--${theme.name} valetudo-vacuum-card`}>
+        <div className="dreame-vacuum-card__container">
+          <ValetudoHeader
+            vacuumEntity={vacuumEntity}
+            batteryEntity={batteryEntity}
+            currentStatsAreaEntity={currentStatsAreaEntity}
+            currentStatsTimeEntity={currentStatsTimeEntity}
+            deviceName={deviceName}
+            restrictionsMode={isRestrictionsMode}
+            onRestrictionsToggle={handleRestrictionsToggle}
+            onSettingsClick={() => setSettingsOpen(true)}
             language={language}
-            robotSize={config.robot_size}
-            chargerSize={config.charger_size}
-            pathWidth={config.path_width}
-            onSegmentClick={
-              selectedMode === 'room'
-                ? (segId) => {
-                    const room = rooms.find((r) => r.id === segId);
-                    handleRoomToggleWithToast(segId, room?.name ?? String(segId));
-                  }
-                : undefined
-            }
           />
-        ) : (
-          <div className="valetudo-vacuum-card__map-placeholder">
-            {mapError ? t('valetudo.map.error', { message: mapError }) : t('valetudo.map.loading')}
-          </div>
-        )}
 
-        <div className="cleaning-mode-button-wrapper">
-          {isRestrictionsMode ? (
-            <RestrictionsToolbar
-              restrictions={restrictions}
-              onToolChange={setTool}
-              onDeleteSelected={deleteSelected}
-              onSave={handleSaveRestrictions}
-              saving={restrictionsSaving}
+          {mapData ? (
+            <ValetudoMapCanvas
+              mapData={mapData}
+              mode={selectedMode}
+              selectedRooms={selectedMode === 'room' ? selectedRooms : undefined}
+              zone={selectedMode === 'zone' ? selectedZone : null}
+              onZoneChange={setSelectedZone}
+              restrictions={isRestrictionsMode ? restrictions : undefined}
+              displayRestrictions={!isRestrictionsMode ? restrictions.savedDisplay : undefined}
+              onRestrictionDrawn={isRestrictionsMode ? handleRestrictionDrawn : undefined}
+              onRestrictionSelect={isRestrictionsMode ? selectItem : undefined}
+              iterations={cleanIterations}
+              onIterationsChange={isRestrictionsMode ? undefined : setCleanIterations}
               language={language}
+              robotSize={config.robot_size}
+              chargerSize={config.charger_size}
+              pathWidth={config.path_width}
+              onSegmentClick={
+                selectedMode === 'room'
+                  ? (segId) => {
+                      const room = rooms.find((r) => r.id === segId);
+                      handleRoomToggleWithToast(segId, room?.name ?? String(segId));
+                    }
+                  : undefined
+              }
             />
           ) : (
-            <button
-              className={`cleaning-mode-button${controlsDisabled ? ' cleaning-mode-button--disabled' : ''}`}
-              onClick={() => setCleaningModalOpen(true)}
-              disabled={controlsDisabled}
-              type="button"
-            >
-              <div className="cleaning-mode-button__content">
-                <span className="cleaning-mode-button__icon">{VACUUM_MOP_ICON_SVG}</span>
-                <span className="cleaning-mode-button__text">
-                  {t('valetudo.cleaning.configure')}
-                  {fanEntity?.state || waterEntity?.state
-                    ? `: ${fanEntity?.state ?? ''}${waterEntity?.state ? ` · ${waterEntity.state}` : ''}`
-                    : ''}
-                </span>
-              </div>
-              <span className="cleaning-mode-button__arrow">›</span>
-            </button>
-          )}
-        </div>
-
-        <div className="dreame-vacuum-card__controls">
-          {!isRestrictionsMode && selectedMode === 'room' && selectedRooms.size > 0 && (
-            <div className="valetudo-selected-rooms">
-              <span className="valetudo-selected-rooms__label">{t('room_display.selected_label')}</span>
-              <span className="valetudo-selected-rooms__names">{Array.from(selectedRooms.values()).join(', ')}</span>
+            <div className="valetudo-vacuum-card__map-placeholder">
+              {mapError ? t('valetudo.map.error', { message: mapError }) : t('valetudo.map.loading')}
             </div>
           )}
 
-          {!isRestrictionsMode && (
-            <ModeTabs
-              selectedMode={selectedMode}
-              onModeChange={handleModeChange}
-              disabled={isRunning}
-              language={language}
-            />
-          )}
+          <div className="cleaning-mode-button-wrapper">
+            {isRestrictionsMode ? (
+              <RestrictionsToolbar
+                restrictions={restrictions}
+                onToolChange={setTool}
+                onDeleteSelected={deleteSelected}
+                onSave={handleSaveRestrictions}
+                saving={restrictionsSaving}
+                language={language}
+              />
+            ) : (
+              <button
+                className={`cleaning-mode-button${controlsDisabled ? ' cleaning-mode-button--disabled' : ''}`}
+                onClick={() => setCleaningModalOpen(true)}
+                disabled={controlsDisabled}
+                type="button"
+              >
+                <div className="cleaning-mode-button__content">
+                  <span className="cleaning-mode-button__icon">{VACUUM_MOP_ICON_SVG}</span>
+                  <span className="cleaning-mode-button__text">
+                    {t('valetudo.cleaning.configure')}
+                    {fanEntity?.state || waterEntity?.state
+                      ? `: ${fanEntity?.state ?? ''}${waterEntity?.state ? ` · ${waterEntity.state}` : ''}`
+                      : ''}
+                  </span>
+                </div>
+                <span className="cleaning-mode-button__arrow">›</span>
+              </button>
+            )}
+          </div>
 
-          <ActionButtons
-            selectedMode={selectedMode}
-            selectedRoomsCount={selectedRooms.size}
-            isRunning={isRunning}
-            isPaused={isPaused}
-            isDocked={isDocked}
-            onClean={isRestrictionsMode ? undefined : handleCleanAction}
-            onPause={handlePause}
-            onResume={handleResume}
-            onStop={handleStop}
-            onDock={handleDock}
-            language={language}
-            disabled={isRestrictionsMode}
-          />
+          <div className="dreame-vacuum-card__controls">
+            {!isRestrictionsMode && selectedMode === 'room' && selectedRooms.size > 0 && (
+              <div className="valetudo-selected-rooms">
+                <span className="valetudo-selected-rooms__label">{t('room_display.selected_label')}</span>
+                <span className="valetudo-selected-rooms__names">{Array.from(selectedRooms.values()).join(', ')}</span>
+              </div>
+            )}
+
+            {!isRestrictionsMode && <ModeTabs selectedMode={selectedMode} onModeChange={handleModeChange} />}
+
+            {!isRestrictionsMode && (
+              <ActionButtons
+                selectedMode={selectedMode}
+                selectedRoomsCount={selectedRooms.size}
+                onClean={handleCleanAction}
+                onPause={handlePause}
+                onResume={handleResume}
+                onStop={() => handleStop()}
+                onDock={handleDock}
+              />
+            )}
+          </div>
         </div>
+
+        <ValetudoCleaningModal
+          opened={cleaningModalOpen}
+          onClose={() => setCleaningModalOpen(false)}
+          fanEntity={fanEntity}
+          waterEntity={waterEntity}
+          onFanChange={handleSetFanSpeed}
+          onWaterChange={handleSetWater}
+          disabled={controlsDisabled}
+          language={language}
+          onStartMapping={hasRobotUrl ? handleStartMapping : undefined}
+        />
+
+        <ValetudoSettingsPanel
+          opened={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          hass={hass}
+          vacuumEntity={vacuumEntity}
+          fanEntity={fanEntity}
+          waterEntity={waterEntity}
+          batteryEntity={batteryEntity}
+          segmentsEntity={segmentsEntity}
+          wifiEntity={wifiEntity}
+          mainBrushEntity={mainBrushEntity}
+          rightBrushEntity={rightBrushEntity}
+          mainFilterEntity={mainFilterEntity}
+          sensorCleaningEntity={sensorCleaningEntity}
+          totalStatsAreaEntity={totalStatsAreaEntity}
+          totalStatsTimeEntity={totalStatsTimeEntity}
+          totalStatsCountEntity={totalStatsCountEntity}
+          currentStatsAreaEntity={currentStatsAreaEntity}
+          currentStatsTimeEntity={currentStatsTimeEntity}
+          carpetModeEntity={carpetModeEntity}
+          entityIds={entityIds}
+          valetudoUrl={config.valetudo_url}
+          language={language}
+        />
+
+        {toast && <Toast message={toast} onClose={hideToast} />}
+        {!mapEntity && <div className="valetudo-vacuum-card__warning">Map entity not found: {entityIds.map}</div>}
+
+        <Modal opened={configErrorModal !== null} onClose={() => setConfigErrorModal(null)}>
+          <div className="valetudo-config-error">
+            <h3 className="valetudo-config-error__title">
+              {configErrorModal === 'restrictions'
+                ? t('valetudo.config_error.restrictions_title')
+                : t('valetudo.config_error.mapping_title')}
+            </h3>
+            <p className="valetudo-config-error__desc">
+              {t(configErrorBlocked ? 'valetudo.config_error.desc_blocked' : 'valetudo.config_error.desc')}
+            </p>
+            {!configErrorBlocked && (
+              <p className="valetudo-config-error__option">{t('valetudo.config_error.option_url')}</p>
+            )}
+            {!configErrorBlocked && (
+              <p className="valetudo-config-error__option">{t('valetudo.config_error.option_rest_intro')}</p>
+            )}
+            <pre className="valetudo-config-error__yaml">
+              {configErrorModal === 'restrictions' ? RESTRICTIONS_YAML : MAPPING_YAML}
+            </pre>
+            <button className="valetudo-config-error__close" onClick={() => setConfigErrorModal(null)}>
+              {t('valetudo.config_error.close')}
+            </button>
+          </div>
+        </Modal>
       </div>
-
-      <ValetudoCleaningModal
-        opened={cleaningModalOpen}
-        onClose={() => setCleaningModalOpen(false)}
-        fanEntity={fanEntity}
-        waterEntity={waterEntity}
-        onFanChange={handleSetFanSpeed}
-        onWaterChange={handleSetWater}
-        disabled={controlsDisabled}
-        language={language}
-        onStartMapping={hasRobotUrl ? handleStartMapping : undefined}
-      />
-
-      <ValetudoSettingsPanel
-        opened={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        hass={hass}
-        vacuumEntity={vacuumEntity}
-        fanEntity={fanEntity}
-        waterEntity={waterEntity}
-        batteryEntity={batteryEntity}
-        segmentsEntity={segmentsEntity}
-        wifiEntity={wifiEntity}
-        mainBrushEntity={mainBrushEntity}
-        rightBrushEntity={rightBrushEntity}
-        mainFilterEntity={mainFilterEntity}
-        sensorCleaningEntity={sensorCleaningEntity}
-        totalStatsAreaEntity={totalStatsAreaEntity}
-        totalStatsTimeEntity={totalStatsTimeEntity}
-        totalStatsCountEntity={totalStatsCountEntity}
-        currentStatsAreaEntity={currentStatsAreaEntity}
-        currentStatsTimeEntity={currentStatsTimeEntity}
-        carpetModeEntity={carpetModeEntity}
-        entityIds={entityIds}
-        valetudoUrl={config.valetudo_url}
-        language={language}
-      />
-
-      {toast && <Toast message={toast} onClose={hideToast} />}
-      {!mapEntity && <div className="valetudo-vacuum-card__warning">Map entity not found: {entityIds.map}</div>}
-
-      <Modal opened={configErrorModal !== null} onClose={() => setConfigErrorModal(null)}>
-        <div className="valetudo-config-error">
-          <h3 className="valetudo-config-error__title">
-            {configErrorModal === 'restrictions'
-              ? t('valetudo.config_error.restrictions_title')
-              : t('valetudo.config_error.mapping_title')}
-          </h3>
-          <p className="valetudo-config-error__desc">
-            {t(configErrorBlocked ? 'valetudo.config_error.desc_blocked' : 'valetudo.config_error.desc')}
-          </p>
-          {!configErrorBlocked && (
-            <p className="valetudo-config-error__option">{t('valetudo.config_error.option_url')}</p>
-          )}
-          {!configErrorBlocked && (
-            <p className="valetudo-config-error__option">{t('valetudo.config_error.option_rest_intro')}</p>
-          )}
-          <pre className="valetudo-config-error__yaml">
-            {configErrorModal === 'restrictions' ? RESTRICTIONS_YAML : MAPPING_YAML}
-          </pre>
-          <button className="valetudo-config-error__close" onClick={() => setConfigErrorModal(null)}>
-            {t('valetudo.config_error.close')}
-          </button>
-        </div>
-      </Modal>
-    </div>
+    </VacuumCardProvider>
   );
 }

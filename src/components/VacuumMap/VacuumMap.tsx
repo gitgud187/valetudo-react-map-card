@@ -1,31 +1,79 @@
-import { useRef, useState, useEffect } from 'react';
-import type { Hass, RoomPosition, CleaningMode, Zone, CalibrationPoint, RoomViewMode } from '../../types/homeassistant';
-import type { SupportedLanguage } from '../../i18n/locales';
-import { useTranslation } from '../../hooks';
-import { parseRoomsFromCamera } from '../../utils/roomParser';
-import { ZoneSelector } from './ZoneSelector';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
+import type {
+  CleaningSelectionMode,
+  Zone,
+  CalibrationPoint,
+  RoomViewMode,
+  VacuumPosition,
+} from '@/types/homeassistant';
+import { useTranslation } from '@/hooks';
+import { useHass, useMachineState, useConfig } from '@/contexts';
+import { parseRoomsFromCamera } from '@/utils/roomParser';
+import { STORAGE_KEY } from '@/constants';
 import { RoomSegments } from './RoomSegments';
-import { ViewToggleButton } from './ViewToggleButton';
+import { MapControls } from './MapControls';
 import { RoomListView } from './RoomListView';
+import { ZoneOverlay } from './ZoneOverlay';
+import { VacuumPositionMarker } from './VacuumPositionMarker';
+import { ChargerMarker } from './ChargerMarker';
+import { RoomLabels } from './RoomLabels';
 import './VacuumMap.scss';
 
 interface VacuumMapProps {
-  hass: Hass;
   mapEntityId: string;
-  selectedMode: CleaningMode;
+  selectedMode: CleaningSelectionMode;
   selectedRooms: Map<number, string>;
-  rooms: RoomPosition[];
   onRoomToggle: (roomId: number, roomName: string) => void;
   zone: Zone | null;
   onZoneChange: (zone: Zone | null) => void;
   onImageDimensionsChange?: (width: number, height: number) => void;
-  language?: SupportedLanguage;
-  isStarted?: boolean;
   defaultRoomView?: RoomViewMode;
 }
 
+// Separate component to access zoom controls via hook
+interface MapControlsWrapperProps {
+  showViewToggle: boolean;
+  showZoomControls: boolean;
+  viewMode: RoomViewMode;
+  onViewToggle: () => void;
+  isMapLocked: boolean;
+  onToggleLock: () => void;
+  onResetTransformReady: (resetFn: () => void) => void;
+}
+
+function MapControlsWrapper({
+  showViewToggle,
+  showZoomControls,
+  viewMode,
+  onViewToggle,
+  isMapLocked,
+  onToggleLock,
+  onResetTransformReady,
+}: MapControlsWrapperProps) {
+  const { zoomIn, zoomOut, resetTransform } = useControls();
+
+  // Pass resetTransform to parent via callback in effect
+  useEffect(() => {
+    onResetTransformReady(resetTransform);
+  }, [resetTransform, onResetTransformReady]);
+
+  return (
+    <MapControls
+      showViewToggle={showViewToggle}
+      showZoomControls={showZoomControls}
+      viewMode={viewMode}
+      onViewToggle={onViewToggle}
+      onZoomIn={() => zoomIn()}
+      onZoomOut={() => zoomOut()}
+      onZoomReset={() => resetTransform()}
+      isMapLocked={isMapLocked}
+      onToggleLock={onToggleLock}
+    />
+  );
+}
+
 export function VacuumMap({
-  hass,
   mapEntityId,
   selectedMode,
   selectedRooms,
@@ -33,95 +81,206 @@ export function VacuumMap({
   zone,
   onZoneChange,
   onImageDimensionsChange,
-  language = 'en',
-  isStarted = false,
   defaultRoomView = 'map',
 }: VacuumMapProps) {
-  const { t } = useTranslation(language);
+  const { t } = useTranslation();
+  const hass = useHass();
+  const config = useConfig();
+  const { phase } = useMachineState();
+  const isInCleaningSession = phase === 'cleaning' || phase === 'paused';
   const mapEntity = hass.states[mapEntityId];
   const mapUrl = mapEntity?.attributes?.entity_picture;
   const mapRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const resetTransformRef = useRef<(() => void) | null>(null);
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
   const [roomViewMode, setRoomViewMode] = useState<RoomViewMode>(defaultRoomView);
 
-  // Reset to default view when switching away from room mode
-  useEffect(() => {
-    if (selectedMode !== 'room') {
-      setRoomViewMode(defaultRoomView);
+  // Map lock state - persisted to localStorage, default: locked
+  const [isMapLocked, setIsMapLocked] = useState(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY.MAP_LOCKED);
+      return stored === null ? true : stored === 'true';
+    } catch {
+      // localStorage not available
+      return true;
     }
-  }, [selectedMode, defaultRoomView]);
-
-  const parsedRooms = parseRoomsFromCamera(hass, mapEntityId);
-  const calibrationPoints = (mapEntity?.attributes?.calibration_points as CalibrationPoint[] | undefined) ?? [];
-
-  const zoneSelector = ZoneSelector({
-    zone,
-    onZoneChange,
-    clearZoneLabel: t('vacuum_map.clear_zone'),
-    isStarted,
   });
 
-  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (selectedMode !== 'zone') return;
-    if (zoneSelector.isResizing()) return;
+  // Callback to receive resetTransform from child component
+  const handleResetTransformReady = useCallback((resetFn: () => void) => {
+    resetTransformRef.current = resetFn;
+  }, []);
 
-    const rect = mapRef.current?.getBoundingClientRect();
-    if (!rect) return;
+  // Handle lock toggle - reset transform when locking
+  const handleToggleLock = useCallback(() => {
+    const newLocked = !isMapLocked;
+    if (newLocked && resetTransformRef.current) {
+      resetTransformRef.current();
+    }
+    setIsMapLocked(newLocked);
+    try {
+      localStorage.setItem(STORAGE_KEY.MAP_LOCKED, String(newLocked));
+    } catch {
+      // localStorage not available
+    }
+  }, [isMapLocked]);
 
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  // Effective view mode: use user selection only in room mode, otherwise default
+  const effectiveRoomViewMode = selectedMode === 'room' ? roomViewMode : defaultRoomView;
 
-    const xPercent = (x / rect.width) * 100;
-    const yPercent = (y / rect.height) * 100;
+  // Memoize parsed rooms to avoid recalculation on every render
+  const parsedRooms = useMemo(
+    () => parseRoomsFromCamera(hass, mapEntityId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hass.states[mapEntityId]?.attributes?.rooms, mapEntityId]
+  );
+  const calibrationPoints = (mapEntity?.attributes?.calibration_points as CalibrationPoint[] | undefined) ?? [];
 
-    const size = 15;
-    const centerX = xPercent;
-    const centerY = yPercent;
+  // Extract map rotation from camera entity (0, 90, 180, or 270 degrees)
+  const mapRotation = (mapEntity?.attributes?.rotation as 0 | 90 | 180 | 270 | undefined) ?? 0;
 
-    const newZone: Zone = {
-      x1: Math.max(0, centerX - size / 2),
-      y1: Math.max(0, centerY - size / 2),
-      x2: Math.min(100, centerX + size / 2),
-      y2: Math.min(100, centerY + size / 2),
-    };
+  // Extract vacuum and charger positions from map entity attributes
+  const vacuumPosition = mapEntity?.attributes?.vacuum_position as VacuumPosition | undefined;
+  const chargerPosition = mapEntity?.attributes?.charger_position as VacuumPosition | undefined;
 
-    console.debug('[Map] Zone created at click:', { clickX: x, clickY: y, xPercent, yPercent, newZone });
-    onZoneChange(newZone);
-  };
+  // Determine if vacuum is currently cleaning (not docked)
+  const isCleaning = phase === 'cleaning';
 
-  const handleResizeMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    const rect = mapRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    zoneSelector.handleResizeMove(e, rect);
-  };
+  const overlays = config.map_overlays ?? [];
+  const hasDimensions = imageDimensions.width > 0 && imageDimensions.height > 0;
+  const showVacuumMarker = overlays.includes('vacuum') && vacuumPosition && hasDimensions;
+  const showChargerMarker = overlays.includes('charger') && chargerPosition && hasDimensions;
+  const showRoomLabels = overlays.includes('room_labels') && hasDimensions;
+
+  const handleImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = e.currentTarget;
+      if (img.naturalWidth && img.naturalHeight) {
+        setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+        onImageDimensionsChange?.(img.naturalWidth, img.naturalHeight);
+      }
+    },
+    [onImageDimensionsChange]
+  );
+
+  // Determine if panning should be enabled (disabled when locked or in zone mode for zone creation)
+  const isPanningEnabled = !isMapLocked && selectedMode !== 'zone';
+
+  // Determine map container class
+  const mapClassName = `vacuum-map${isMapLocked ? ' vacuum-map--locked' : ''}`;
 
   return (
-    <div
-      className="vacuum-map"
-      ref={mapRef}
-      onClick={handleMapClick}
-      onMouseMove={handleResizeMove}
-      onMouseUp={zoneSelector.handleResizeEnd}
-      onMouseLeave={zoneSelector.handleResizeEnd}
-      onTouchMove={handleResizeMove}
-      onTouchEnd={zoneSelector.handleResizeEnd}
-      onTouchCancel={zoneSelector.handleResizeEnd}
-    >
+    <div className={mapClassName} ref={mapRef}>
       {mapEntity && mapUrl ? (
-        <img
-          ref={imageRef}
-          src={hass.hassUrl(mapUrl)}
-          alt="Vacuum Map"
-          className="vacuum-map__image"
-          onLoad={(e) => {
-            const img = e.currentTarget;
-            if (img.naturalWidth && img.naturalHeight) {
-              setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-              onImageDimensionsChange?.(img.naturalWidth, img.naturalHeight);
-            }
+        <TransformWrapper
+          initialScale={1}
+          minScale={0.5}
+          maxScale={4}
+          centerOnInit={true}
+          centerZoomedOut={false}
+          limitToBounds={false}
+          wheel={{
+            step: 0.05,
+            disabled: isMapLocked,
           }}
-        />
+          pinch={{
+            step: 0.5,
+            disabled: isMapLocked,
+          }}
+          panning={{
+            disabled: !isPanningEnabled,
+            velocityDisabled: true,
+            excluded: ['vacuum-map__room-segment'],
+          }}
+          doubleClick={{ disabled: true }}
+        >
+          <MapControlsWrapper
+            showViewToggle={selectedMode === 'room'}
+            showZoomControls={selectedMode !== 'room' || effectiveRoomViewMode === 'map'}
+            viewMode={effectiveRoomViewMode}
+            onViewToggle={() => setRoomViewMode((v) => (v === 'map' ? 'list' : 'map'))}
+            isMapLocked={isMapLocked}
+            onToggleLock={handleToggleLock}
+            onResetTransformReady={handleResetTransformReady}
+          />
+          <TransformComponent
+            wrapperStyle={{
+              width: '100%',
+              height: '100%',
+            }}
+            contentStyle={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div className="vacuum-map__content" ref={contentRef}>
+              <img
+                src={hass.hassUrl(mapUrl)}
+                alt="Vacuum Map"
+                className="vacuum-map__image"
+                onLoad={handleImageLoad}
+                draggable={false}
+              />
+
+              {showChargerMarker && (
+                <ChargerMarker
+                  position={chargerPosition}
+                  calibrationPoints={calibrationPoints}
+                  imageWidth={imageDimensions.width}
+                  imageHeight={imageDimensions.height}
+                />
+              )}
+
+              {showVacuumMarker && (
+                <VacuumPositionMarker
+                  position={vacuumPosition}
+                  calibrationPoints={calibrationPoints}
+                  imageWidth={imageDimensions.width}
+                  imageHeight={imageDimensions.height}
+                  isCleaning={isCleaning}
+                />
+              )}
+
+              {showRoomLabels && (
+                <RoomLabels
+                  rooms={parsedRooms}
+                  calibrationPoints={calibrationPoints}
+                  imageWidth={imageDimensions.width}
+                  imageHeight={imageDimensions.height}
+                />
+              )}
+
+              {selectedMode === 'room' &&
+                effectiveRoomViewMode === 'map' &&
+                !isInCleaningSession &&
+                imageDimensions.width > 0 &&
+                imageDimensions.height > 0 && (
+                  <RoomSegments
+                    rooms={parsedRooms}
+                    selectedRooms={selectedRooms}
+                    onRoomToggle={onRoomToggle}
+                    calibrationPoints={calibrationPoints}
+                    imageWidth={imageDimensions.width}
+                    imageHeight={imageDimensions.height}
+                    rotation={mapRotation}
+                  />
+                )}
+
+              {selectedMode === 'zone' && (
+                <ZoneOverlay
+                  zone={zone}
+                  onZoneChange={onZoneChange}
+                  clearZoneLabel={t('vacuum_map.clear_zone')}
+                  contentRef={contentRef}
+                />
+              )}
+            </div>
+          </TransformComponent>
+        </TransformWrapper>
       ) : (
         <div className="vacuum-map__placeholder">
           {t('vacuum_map.no_map')}
@@ -132,48 +291,20 @@ export function VacuumMap({
 
       {selectedMode === 'room' && (
         <>
-          <ViewToggleButton
-            viewMode={roomViewMode}
-            onToggle={() => setRoomViewMode((v) => (v === 'map' ? 'list' : 'map'))}
-            mapLabel={t('vacuum_map.switch_to_map')}
-            listLabel={t('vacuum_map.switch_to_list')}
-          />
+          {effectiveRoomViewMode === 'map' && !isInCleaningSession && (
+            <div className="vacuum-map__overlay">{t('vacuum_map.room_overlay')}</div>
+          )}
 
-          {roomViewMode === 'map' ? (
-            <>
-              {!isStarted && <div className="vacuum-map__overlay">{t('vacuum_map.room_overlay')}</div>}
-
-              {!isStarted && imageDimensions.width > 0 && imageDimensions.height > 0 && (
-                <RoomSegments
-                  rooms={parsedRooms}
-                  selectedRooms={selectedRooms}
-                  onRoomToggle={onRoomToggle}
-                  calibrationPoints={calibrationPoints}
-                  imageWidth={imageDimensions.width}
-                  imageHeight={imageDimensions.height}
-                  isStarted={isStarted}
-                />
-              )}
-            </>
-          ) : (
-            <RoomListView
-              rooms={parsedRooms}
-              selectedRooms={selectedRooms}
-              onRoomToggle={onRoomToggle}
-              language={language}
-            />
+          {effectiveRoomViewMode === 'list' && (
+            <RoomListView rooms={parsedRooms} selectedRooms={selectedRooms} onRoomToggle={onRoomToggle} />
           )}
         </>
       )}
 
       {selectedMode === 'zone' && (
-        <>
-          <div className="vacuum-map__overlay">
-            {zone ? t('vacuum_map.zone_overlay_resize') : t('vacuum_map.zone_overlay_create')}
-          </div>
-
-          {zoneSelector.renderZone()}
-        </>
+        <div className="vacuum-map__overlay">
+          {zone ? t('vacuum_map.zone_overlay_resize') : t('vacuum_map.zone_overlay_create')}
+        </div>
       )}
     </div>
   );

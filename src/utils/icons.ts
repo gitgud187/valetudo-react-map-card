@@ -9,6 +9,8 @@ import {
   SUCTION_LEVEL,
   CLEANING_ROUTE,
   SELF_CLEAN_FREQUENCY,
+  WATER_VOLUME,
+  MOP_PAD_HUMIDITY,
   VACUUM_ICON_SVG,
   MAPPING_ICON_SVG,
   MOP_ICON_SVG,
@@ -26,10 +28,20 @@ import {
   MOP_WASHING_FREQUENCY_BY_AREA_ICON_SVG,
   MOP_WASHING_FREQUENCY_BY_TIME_ICON_SVG,
   MOP_WASHING_FREQUENCY_BY_ROOM_ICON_SVG,
-} from '../constants';
-import type { CleaningMode, CleanGeniusMode, SuctionLevel, CleaningRoute, SelfCleanFrequency } from '../types/vacuum';
+  CUSTOMIZE_ICON_SVG,
+  WATER_VOLUME_ICON_SVG,
+} from '@/constants';
+import type {
+  VacuumCleaningMode,
+  CleanGeniusMode,
+  SuctionLevel,
+  CleaningRoute,
+  SelfCleanFrequency,
+  WaterVolume,
+  MopPadHumidity,
+} from '@/types/vacuum';
 
-export function getCleaningModeIcon(mode: CleaningMode): ReactElement | string {
+export function getCleaningModeIcon(mode: VacuumCleaningMode): ReactElement | string {
   switch (mode) {
     case CLEANING_MODE.SWEEPING:
       return VACUUM_ICON_SVG;
@@ -41,6 +53,8 @@ export function getCleaningModeIcon(mode: CleaningMode): ReactElement | string {
       return MOP_AFTER_VACUUM_ICON_SVG;
     case CLEANING_MODE.MAPPING:
       return MAPPING_ICON_SVG;
+    case CLEANING_MODE.CUSTOMIZE:
+      return CUSTOMIZE_ICON_SVG;
     default:
       return '';
   }
@@ -95,4 +109,48 @@ export function getSelfCleanFrequencyIcon(frequency: SelfCleanFrequency): ReactE
     default:
       return '⚙️';
   }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function getWaterVolumeIcon(_: WaterVolume): ReactElement {
+  return WATER_VOLUME_ICON_SVG;
+}
+
+type TranslateFunction = (key: string, params?: Record<string, string | number>) => string;
+
+export function getWaterVolumeFriendlyName(level: WaterVolume, t?: TranslateFunction): string {
+  if (t) {
+    switch (level) {
+      case WATER_VOLUME.LOW:
+        return t('custom_mode.water_low');
+      case WATER_VOLUME.MEDIUM:
+        return t('custom_mode.water_medium');
+      case WATER_VOLUME.HIGH:
+        return t('custom_mode.water_high');
+      default:
+        return level;
+    }
+  }
+  return level;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function getMopPadHumidityIcon(_: MopPadHumidity): ReactElement {
+  return WATER_VOLUME_ICON_SVG;
+}
+
+export function getMopPadHumidityFriendlyName(level: MopPadHumidity, t?: TranslateFunction): string {
+  if (t) {
+    switch (level) {
+      case MOP_PAD_HUMIDITY.SLIGHTLY_DRY:
+        return t('custom_mode.slightly_dry');
+      case MOP_PAD_HUMIDITY.MOIST:
+        return t('custom_mode.moist');
+      case MOP_PAD_HUMIDITY.WET:
+        return t('custom_mode.wet');
+      default:
+        return level;
+    }
+  }
+  return level;
 }
