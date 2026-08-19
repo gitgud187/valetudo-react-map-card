@@ -24,6 +24,26 @@ const CHARGER_COLOR = '#4CAF50';
 const ROBOT_COLOR = '#2196F3';
 const SCALE = 3; // px per map pixel
 
+/** Supported map rotations in degrees (clockwise). */
+export type MapRotate = 0 | 90 | 180 | 270;
+
+/**
+ * Inverse of the map_rotate bitmap transform: rotated-canvas px → content px.
+ * w/h are the ORIGINAL (unrotated) content size in canvas logical px.
+ */
+function unrotatePoint(x: number, y: number, w: number, h: number, rot: MapRotate): { x: number; y: number } {
+  switch (rot) {
+    case 90:
+      return { x: y, y: h - x };
+    case 180:
+      return { x: w - x, y: h - y };
+    case 270:
+      return { x: w - y, y: x };
+    default:
+      return { x, y };
+  }
+}
+
 function getBoundingBox(mapData: RawMapData) {
   let minX = Infinity,
     minY = Infinity,
@@ -96,11 +116,13 @@ interface ValetudoMapCanvasProps {
   pathWidth?: number;
   /** Max display height of the map canvas in px (aspect preserved). Default: unset (fill width). */
   mapMaxHeight?: number;
+  /** Rotate the rendered map clockwise by 0/90/180/270 degrees. Default: 0. */
+  mapRotate?: MapRotate;
 }
 
 // Stored state for coordinate conversion (filled during render)
 interface MapGeometry {
-  bb: { minX: number; minY: number };
+  bb: { minX: number; minY: number; maxX: number; maxY: number };
   pixelSize: number;
 }
 
@@ -122,11 +144,15 @@ export function ValetudoMapCanvas({
   chargerSize = 1,
   pathWidth = 1,
   mapMaxHeight,
+  mapRotate = 0,
 }: ValetudoMapCanvasProps) {
   const { t } = useTranslation(language);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const geoRef = useRef<MapGeometry>({ bb: { minX: 0, minY: 0 }, pixelSize: 50 });
+  const geoRef = useRef<MapGeometry>({
+    bb: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+    pixelSize: 50,
+  });
   const segLookupRef = useRef<Map<string, number>>(new Map());
 
   // ─── Zoom/Pan state ────────────────────────────────────────────────────────
@@ -174,13 +200,19 @@ export function ValetudoMapCanvas({
 
   const isTouchDevice = useMemo(() => window.matchMedia('(pointer: coarse)').matches, []);
 
-  const canvasToMm = useCallback((cx: number, cy: number): { x: number; y: number } => {
-    const { bb, pixelSize } = geoRef.current;
-    return {
-      x: (cx / SCALE + bb.minX) * pixelSize,
-      y: (cy / SCALE + bb.minY) * pixelSize,
-    };
-  }, []);
+  const canvasToMm = useCallback(
+    (cx: number, cy: number): { x: number; y: number } => {
+      const { bb, pixelSize } = geoRef.current;
+      const w = (bb.maxX - bb.minX + 2) * SCALE;
+      const h = (bb.maxY - bb.minY + 2) * SCALE;
+      const p = unrotatePoint(cx, cy, w, h, mapRotate);
+      return {
+        x: (p.x / SCALE + bb.minX) * pixelSize,
+        y: (p.y / SCALE + bb.minY) * pixelSize,
+      };
+    },
+    [mapRotate]
+  );
 
   const mmToCanvas = useCallback((mmX: number, mmY: number): { x: number; y: number } => {
     const { bb, pixelSize } = geoRef.current;
@@ -277,14 +309,30 @@ export function ValetudoMapCanvas({
 
     const w = (bb.maxX - bb.minX + 2) * SCALE;
     const h = (bb.maxY - bb.minY + 2) * SCALE;
+    // Rotate the bitmap: canvas dims follow the rotation (90/270 swap aspect)
+    const nw = mapRotate === 90 || mapRotate === 270 ? h : w;
+    const nh = mapRotate === 90 || mapRotate === 270 ? w : h;
 
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = nw;
+    canvas.height = nh;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, w, h);
+    ctx.clearRect(0, 0, nw, nh);
+
+    // Draw the whole map in content space, rotated into the canvas.
+    ctx.save();
+    if (mapRotate === 90) {
+      ctx.translate(h, 0);
+      ctx.rotate(Math.PI / 2);
+    } else if (mapRotate === 180) {
+      ctx.translate(w, h);
+      ctx.rotate(Math.PI);
+    } else if (mapRotate === 270) {
+      ctx.translate(0, w);
+      ctx.rotate(-Math.PI / 2);
+    }
 
     const segColors = assignSegmentColors(mapData.layers);
     const segIdToNumber = (sid: string): number => parseInt(sid, 10);
@@ -560,6 +608,7 @@ export function ValetudoMapCanvas({
       for (const w of restrictions.walls) drawWall(w, w.id === restrictions.selectedId);
       for (const z of restrictions.zones) drawZone(z, z.id === restrictions.selectedId);
     }
+    ctx.restore();
   }, [
     mapData,
     selectedRooms,
@@ -572,6 +621,7 @@ export function ValetudoMapCanvas({
     robotSize,
     chargerSize,
     pathWidth,
+    mapRotate,
   ]);
 
   // Restrictions overlay is now drawn inside the main canvas effect above.
@@ -780,6 +830,9 @@ export function ValetudoMapCanvas({
       if (mode === 'restrictions' && restrictions && restrictions.tool === 'select' && onRestrictionSelect) {
         const pt = screenToCanvas(e.clientX, e.clientY);
         const { bb, pixelSize } = geoRef.current;
+        const cw = (bb.maxX - bb.minX + 2) * SCALE;
+        const ch = (bb.maxY - bb.minY + 2) * SCALE;
+        const up = unrotatePoint(pt.x, pt.y, cw, ch, mapRotate);
         const toC = (mmX: number, mmY: number) => ({
           x: (mmX / pixelSize - bb.minX) * SCALE,
           y: (mmY / pixelSize - bb.minY) * SCALE,
@@ -792,11 +845,11 @@ export function ValetudoMapCanvas({
           const dx = p2.x - p1.x;
           const dy = p2.y - p1.y;
           const len2 = dx * dx + dy * dy;
-          let t = len2 > 0 ? ((pt.x - p1.x) * dx + (pt.y - p1.y) * dy) / len2 : 0;
+          let t = len2 > 0 ? ((up.x - p1.x) * dx + (up.y - p1.y) * dy) / len2 : 0;
           t = Math.max(0, Math.min(1, t));
           const nearX = p1.x + t * dx;
           const nearY = p1.y + t * dy;
-          if (Math.hypot(pt.x - nearX, pt.y - nearY) <= HIT_PX) {
+          if (Math.hypot(up.x - nearX, up.y - nearY) <= HIT_PX) {
             onRestrictionSelect(w.id);
             return;
           }
@@ -808,7 +861,7 @@ export function ValetudoMapCanvas({
           const maxX = Math.max(...pts.map((p) => p.x));
           const minY = Math.min(...pts.map((p) => p.y));
           const maxY = Math.max(...pts.map((p) => p.y));
-          if (pt.x >= minX - HIT_PX && pt.x <= maxX + HIT_PX && pt.y >= minY - HIT_PX && pt.y <= maxY + HIT_PX) {
+          if (up.x >= minX - HIT_PX && up.x <= maxX + HIT_PX && up.y >= minY - HIT_PX && up.y <= maxY + HIT_PX) {
             onRestrictionSelect(z.id);
             return;
           }
@@ -822,12 +875,15 @@ export function ValetudoMapCanvas({
       if (!canvas) return;
       const pt = screenToCanvas(e.clientX, e.clientY);
       const { bb } = geoRef.current;
-      const mx = Math.floor(pt.x / SCALE) + bb.minX;
-      const my = Math.floor(pt.y / SCALE) + bb.minY;
+      const cw = (bb.maxX - bb.minX + 2) * SCALE;
+      const ch = (bb.maxY - bb.minY + 2) * SCALE;
+      const up = unrotatePoint(pt.x, pt.y, cw, ch, mapRotate);
+      const mx = Math.floor(up.x / SCALE) + bb.minX;
+      const my = Math.floor(up.y / SCALE) + bb.minY;
       const segId = segLookupRef.current.get(`${mx},${my}`);
       if (segId !== undefined) onSegmentClick(segId);
     },
-    [mode, onSegmentClick, screenToCanvas, restrictions, onRestrictionSelect]
+    [mode, onSegmentClick, screenToCanvas, restrictions, onRestrictionSelect, mapRotate]
   );
 
   // ─── Widget zone drag handles ──────────────────────────────────────────────

@@ -48,6 +48,8 @@ export interface ValetudoHassConfig {
   path_width?: number; // multiplier, default 1.0
   /** Max display height of the map canvas in px (aspect preserved). Default: unset (fill width). */
   map_max_height?: number;
+  /** Rotate the rendered map clockwise by 0/90/180/270 degrees. Default: 0. */
+  map_rotate?: 0 | 90 | 180 | 270;
 }
 
 /** Resolved entity IDs after applying auto-derivation and overrides */

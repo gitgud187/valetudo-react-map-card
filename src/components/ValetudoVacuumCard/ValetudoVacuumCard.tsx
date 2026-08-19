@@ -382,6 +382,7 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
               chargerSize={config.charger_size}
               pathWidth={config.path_width}
               mapMaxHeight={config.map_max_height}
+              mapRotate={config.map_rotate}
               onSegmentClick={
                 !isRestrictionsMode && selectedMode === 'room'
                   ? (segId) => {
