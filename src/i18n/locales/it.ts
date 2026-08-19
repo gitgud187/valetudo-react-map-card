@@ -272,6 +272,9 @@ export const it: Translation = {
       config_needed: '⚠️ Configurazione necessaria. Vedi console (F12).',
       mapping_started: 'Mappatura avviata',
       mapping_error: 'Impossibile avviare la mappatura',
+      missing_identifier: '⚠️ Add valetudo_identifier to the card config (e.g. HarshSillyPigeon)',
+      zone_started: 'Zone cleaning started ({{width}}×{{height}}mm, {{iterations}}×)',
+      draw_zone_first: 'Draw a zone on the map first',
     },
     status: {
       docked: 'In base',

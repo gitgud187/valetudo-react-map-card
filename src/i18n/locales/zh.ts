@@ -271,6 +271,9 @@ export const zh: Translation = {
       config_needed: '⚠️ 需要配置，请查看控制台 (F12)。',
       mapping_started: '建图已启动',
       mapping_error: '无法启动建图',
+      missing_identifier: '⚠️ Add valetudo_identifier to the card config (e.g. HarshSillyPigeon)',
+      zone_started: 'Zone cleaning started ({{width}}×{{height}}mm, {{iterations}}×)',
+      draw_zone_first: 'Draw a zone on the map first',
     },
     status: {
       docked: '已归位',

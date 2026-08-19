@@ -272,6 +272,9 @@ export const ru: Translation = {
       config_needed: '⚠️ Нужна настройка. Смотри консоль (F12).',
       mapping_started: 'Картирование запущено',
       mapping_error: 'Не удалось запустить картирование',
+      missing_identifier: '⚠️ Добавь valetudo_identifier в конфиг карты (например: HarshSillyPigeon)',
+      zone_started: 'Уборка зоны запущена ({{width}}×{{height}}мм, {{iterations}}×)',
+      draw_zone_first: 'Нарисуй зону на карте',
     },
     status: {
       docked: 'На базе',

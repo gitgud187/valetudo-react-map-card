@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HA_HOST="homeassistant.lan"
 HA_PORT=22222
 HA_PATH="/mnt/data/supervisor/homeassistant/www/valetudo-vacuum-map-card"
-LOCAL_JS="$SCRIPT_DIR/dist/dreame-vacuum-map-card.js"
+LOCAL_JS="$SCRIPT_DIR/dist/valetudo-react-map-card.js"
 
 echo "==> Building..."
 cd "$SCRIPT_DIR"

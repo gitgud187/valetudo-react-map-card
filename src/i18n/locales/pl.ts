@@ -271,6 +271,9 @@ export const pl: Translation = {
       config_needed: '⚠️ Wymagana konfiguracja. Sprawdź konsolę (F12).',
       mapping_started: 'Mapowanie uruchomione',
       mapping_error: 'Nie udało się uruchomić mapowania',
+      missing_identifier: '⚠️ Add valetudo_identifier to the card config (e.g. HarshSillyPigeon)',
+      zone_started: 'Zone cleaning started ({{width}}×{{height}}mm, {{iterations}}×)',
+      draw_zone_first: 'Draw a zone on the map first',
     },
     status: {
       docked: 'Na stacji',

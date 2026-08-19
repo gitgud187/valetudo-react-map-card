@@ -35,6 +35,21 @@ function isHassNotFoundError(err: unknown): boolean {
   return msg.includes('not_found') || msg.includes('Service not found') || msg.includes('Service rest_command');
 }
 
+/** Only allow http(s) URLs for direct REST calls to the robot. */
+function isSafeRobotUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/** WiFi entity IPs are raw addresses; reject anything that isn't a plain host/IP. */
+function isPlainHost(value: string): boolean {
+  return /^[a-zA-Z0-9.-]+$/.test(value) && !value.includes('..') && !value.startsWith('-') && !value.endsWith('-');
+}
+
 /**
  * Parses the segments sensor attributes into a RoomPosition list.
  */
@@ -104,7 +119,13 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
   const wifiAttrs = wifiEntity?.attributes as Record<string, unknown> | undefined;
   const wifiIp = (wifiAttrs?.ips as string[] | undefined)?.[0];
   // Resolved URL for direct REST calls: explicit config > wifi entity IP
-  const resolvedRobotUrl = config.valetudo_url?.replace(/\/$/, '') || (wifiIp ? `http://${wifiIp}` : null);
+  const explicitUrl = config.valetudo_url?.replace(/\/$/, '');
+  const resolvedRobotUrl =
+    explicitUrl && isSafeRobotUrl(explicitUrl)
+      ? explicitUrl
+      : wifiIp && isPlainHost(wifiIp)
+        ? `http://${wifiIp}`
+        : null;
   const hasRobotUrl = !!resolvedRobotUrl;
 
   const handleStartMapping = useCallback(async () => {
@@ -143,7 +164,7 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
 
       if (!done) {
         const hint =
-          'Добавь в configuration.yaml:\n' +
+          'Add to configuration.yaml:\n' +
           'rest_command:\n' +
           '  valetudo_start_mapping:\n' +
           '    url: "http://ROBOT_IP/api/v2/robot/capabilities/MappingPassCapability"\n' +
@@ -254,7 +275,7 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
 
       if (!saved) {
         const configHint =
-          'Добавь в configuration.yaml:\n' +
+          'Add to configuration.yaml:\n' +
           'rest_command:\n' +
           '  valetudo_set_restrictions:\n' +
           '    url: "http://ROBOT_IP/api/v2/robot/capabilities/CombinedVirtualRestrictionsCapability"\n' +

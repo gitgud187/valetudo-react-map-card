@@ -532,6 +532,9 @@ export const fr_FR: Translation = {
       config_needed: '⚠️ Config needed. See console (F12).',
       mapping_started: 'Mapping run started',
       mapping_error: 'Failed to start mapping',
+      missing_identifier: '⚠️ Add valetudo_identifier to the card config (e.g. HarshSillyPigeon)',
+      zone_started: 'Zone cleaning started ({{width}}×{{height}}mm, {{iterations}}×)',
+      draw_zone_first: 'Draw a zone on the map first',
     },
     status: {
       docked: 'Docked',

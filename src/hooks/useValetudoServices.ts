@@ -47,7 +47,7 @@ export function useValetudoServices({ hass, entityIds, onSuccess, language = 'en
     (segments: number[], count: number, iterations = 1) => {
       const identifier = entityIds.mqttIdentifier;
       if (!identifier) {
-        onSuccess?.('⚠️ Добавь valetudo_identifier в конфиг карты (например: HarshSillyPigeon)');
+        onSuccess?.(t('valetudo.toast.missing_identifier'));
         return;
       }
       hass.callService('mqtt', 'publish', {
@@ -103,7 +103,7 @@ export function useValetudoServices({ hass, entityIds, onSuccess, language = 'en
           if (_selectedZone) {
             const identifier = entityIds.mqttIdentifier;
             if (!identifier) {
-              onSuccess?.('⚠️ Добавь valetudo_identifier в конфиг карты (например: HarshSillyPigeon)');
+              onSuccess?.(t('valetudo.toast.missing_identifier'));
               break;
             }
             const { x1, y1, x2, y2 } = _selectedZone;
@@ -132,9 +132,15 @@ export function useValetudoServices({ hass, entityIds, onSuccess, language = 'en
               payload: JSON.stringify(zonePayload),
               retain: false,
             });
-            onSuccess?.(`Уборка зоны запущена (${zoneW}×${zoneH}мм, ${iterations}×)`);
+            onSuccess?.(
+              t('valetudo.toast.zone_started', {
+                width: String(zoneW),
+                height: String(zoneH),
+                iterations: String(iterations),
+              })
+            );
           } else {
-            onSuccess?.('Нарисуй зону на карте');
+            onSuccess?.(t('valetudo.toast.draw_zone_first'));
           }
           break;
       }

@@ -273,6 +273,9 @@ export const de: Translation = {
       config_needed: '⚠️ Konfiguration erforderlich. Konsole öffnen (F12).',
       mapping_started: 'Kartierung gestartet',
       mapping_error: 'Kartierung konnte nicht gestartet werden',
+      missing_identifier: '⚠️ Add valetudo_identifier to the card config (e.g. HarshSillyPigeon)',
+      zone_started: 'Zone cleaning started ({{width}}×{{height}}mm, {{iterations}}×)',
+      draw_zone_first: 'Draw a zone on the map first',
     },
     status: {
       docked: 'Auf der Basis',

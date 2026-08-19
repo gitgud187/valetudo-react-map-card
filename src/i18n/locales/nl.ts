@@ -272,6 +272,9 @@ export const nl: Translation = {
       config_needed: '⚠️ Configuratie vereist. Zie console (F12).',
       mapping_started: 'Kaartcyclus gestart',
       mapping_error: 'Kaartcyclus starten mislukt',
+      missing_identifier: '⚠️ Add valetudo_identifier to the card config (e.g. HarshSillyPigeon)',
+      zone_started: 'Zone cleaning started ({{width}}×{{height}}mm, {{iterations}}×)',
+      draw_zone_first: 'Draw a zone on the map first',
     },
     status: {
       docked: 'Op basis',
