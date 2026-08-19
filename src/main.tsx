@@ -84,7 +84,9 @@ class DreameVacuumMapCard extends HTMLElement {
   }
 }
 
-customElements.define('dreame-vacuum-map-card', DreameVacuumMapCard);
+if (!customElements.get('dreame-vacuum-map-card')) {
+  customElements.define('dreame-vacuum-map-card', DreameVacuumMapCard);
+}
 
 // ─── Valetudo Vacuum Map Card ─────────────────────────────────────────────────
 
@@ -287,7 +289,9 @@ class ValetudoVacuumMapCard extends HTMLElement {
   }
 }
 
-customElements.define('valetudo-react-map-card', ValetudoVacuumMapCard);
+if (!customElements.get('valetudo-react-map-card')) {
+  customElements.define('valetudo-react-map-card', ValetudoVacuumMapCard);
+}
 
 declare global {
   interface Window {

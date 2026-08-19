@@ -29551,7 +29551,7 @@ class BM extends HTMLElement {
     };
   }
 }
-customElements.define("dreame-vacuum-map-card", BM);
+customElements.get("dreame-vacuum-map-card") || customElements.define("dreame-vacuum-map-card", BM);
 class GM extends HTMLElement {
   _root = null;
   _hass;
@@ -29712,7 +29712,7 @@ class GM extends HTMLElement {
     };
   }
 }
-customElements.define("valetudo-react-map-card", GM);
+customElements.get("valetudo-react-map-card") || customElements.define("valetudo-react-map-card", GM);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "dreame-vacuum-map-card",
