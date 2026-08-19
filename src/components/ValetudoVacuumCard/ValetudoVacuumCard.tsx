@@ -127,7 +127,6 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
       : wifiIp && isPlainHost(wifiIp)
         ? `http://${wifiIp}`
         : null;
-  const hasRobotUrl = !!resolvedRobotUrl;
 
   const handleStartMapping = useCallback(async () => {
     try {
@@ -468,7 +467,7 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
           onWaterChange={handleSetWater}
           disabled={controlsDisabled}
           language={language}
-          onStartMapping={hasRobotUrl ? handleStartMapping : undefined}
+          onStartMapping={handleStartMapping}
         />
 
         <ValetudoSettingsPanel
