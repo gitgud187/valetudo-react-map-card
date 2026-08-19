@@ -193,18 +193,21 @@ export function ValetudoMapCanvas({
   // Convert screen point → canvas pixel (accounting for zoom/pan/css scale)
   const screenToCanvas = useCallback(
     (screenX: number, screenY: number): { x: number; y: number } => {
-      const container = containerRef.current;
       const canvas = canvasRef.current;
-      if (!container || !canvas) return { x: 0, y: 0 };
-      const rect = container.getBoundingClientRect();
-      // Position relative to container center (pan pivot)
-      const cx = (screenX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
-      const cy = (screenY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
-      // canvas CSS width to canvas logical width ratio
-      const cssW = rect.width;
-      const logW = canvas.width;
-      const ratio = logW / cssW;
-      return { x: cx * ratio, y: cy * ratio };
+      if (!canvas) return { x: 0, y: 0 };
+      // Transformed rect includes zoom+pan (translate(pan) scale(zoom), origin center)
+      const rect = canvas.getBoundingClientRect();
+      // Untransformed CSS size
+      const cssW = rect.width / zoom;
+      const cssH = rect.height / zoom;
+      // Untransformed element top-left: rect.left = left + cssW/2*(1-zoom) + pan.x
+      const left = rect.left - pan.x - (cssW * (1 - zoom)) / 2;
+      const top = rect.top - pan.y - (cssH * (1 - zoom)) / 2;
+      // canvas CSS px → canvas logical px ratio
+      return {
+        x: (screenX - left) * (canvas.width / cssW),
+        y: (screenY - top) * (canvas.height / cssH),
+      };
     },
     [zoom, pan]
   );
