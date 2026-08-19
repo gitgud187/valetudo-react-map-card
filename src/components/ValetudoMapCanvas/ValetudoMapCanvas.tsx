@@ -144,8 +144,11 @@ export function ValetudoMapCanvas({
   chargerSize = 1,
   pathWidth = 1,
   mapMaxHeight,
-  mapRotate = 0,
+  mapRotate: mapRotateProp = 0,
 }: ValetudoMapCanvasProps) {
+  // Normalize runtime config values: only 90/180/270 rotate, anything else renders unrotated
+  const mapRotate: MapRotate =
+    mapRotateProp === 90 || mapRotateProp === 180 || mapRotateProp === 270 ? mapRotateProp : 0;
   const { t } = useTranslation(language);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -244,14 +247,14 @@ export function ValetudoMapCanvas({
     [zoom, pan]
   );
 
-  // Reset zoom/pan when mode changes
+  // Reset zoom/pan when mode or rotation changes
   useEffect(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setWidgetZone(null);
     setPendingRestriction(null);
     tapStartRef.current = null;
-  }, [mode]);
+  }, [mode, mapRotate]);
 
   // Clear pending restriction when restriction tool changes
   useEffect(() => {
