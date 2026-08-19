@@ -26619,7 +26619,7 @@ function iC({
         /* @__PURE__ */ f.jsxs("h2", { className: "header__title", children: [
           l,
           " ",
-          /* @__PURE__ */ f.jsx("span", { style: { fontSize: "0.6em", opacity: 0.45, fontWeight: 400 }, children: "v1.13.3" })
+          /* @__PURE__ */ f.jsx("span", { style: { fontSize: "0.6em", opacity: 0.45, fontWeight: 400 }, children: "v1.14.0" })
         ] }),
         /* @__PURE__ */ f.jsx("p", { className: "header__status", children: S })
       ] }),
