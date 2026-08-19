@@ -5,6 +5,7 @@ import { ValetudoCleaningModal } from '../ValetudoCleaningModal/ValetudoCleaning
 import { ValetudoSettingsPanel } from '../ValetudoSettingsPanel/ValetudoSettingsPanel';
 import { ModeTabs } from '../ModeTabs';
 import { ActionButtons } from '../ActionButtons';
+import { PauseButton, StopButton } from '../ActionButtons/components';
 import { Toast, Modal } from '../common';
 import { RestrictionsToolbar } from '../RestrictionsToolbar/RestrictionsToolbar';
 import { VACUUM_MOP_ICON_SVG } from '../../constants';
@@ -367,7 +368,7 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
           {mapData ? (
             <ValetudoMapCanvas
               mapData={mapData}
-              mode={selectedMode}
+              mode={isRestrictionsMode ? 'restrictions' : selectedMode}
               selectedRooms={selectedMode === 'room' ? selectedRooms : undefined}
               zone={selectedMode === 'zone' ? selectedZone : null}
               onZoneChange={setSelectedZone}
@@ -382,7 +383,7 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
               chargerSize={config.charger_size}
               pathWidth={config.path_width}
               onSegmentClick={
-                selectedMode === 'room'
+                !isRestrictionsMode && selectedMode === 'room'
                   ? (segId) => {
                       const room = rooms.find((r) => r.id === segId);
                       handleRoomToggleWithToast(segId, room?.name ?? String(segId));
@@ -437,7 +438,14 @@ export function ValetudoVacuumCard({ hass, config }: ValetudoVacuumCardProps) {
 
             {!isRestrictionsMode && <ModeTabs selectedMode={selectedMode} onModeChange={handleModeChange} />}
 
-            {!isRestrictionsMode && (
+            {!isRestrictionsMode && state === 'returning' && (
+              <div className="action-buttons">
+                <PauseButton onClick={handlePause} />
+                <StopButton onClick={() => handleStop()} action="stop" />
+              </div>
+            )}
+
+            {!isRestrictionsMode && state !== 'returning' && (
               <ActionButtons
                 selectedMode={selectedMode}
                 selectedRoomsCount={selectedRooms.size}
