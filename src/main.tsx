@@ -237,6 +237,10 @@ class ValetudoVacuumMapCard extends HTMLElement {
             column_min_width: '160px',
             schema: [
               {
+                name: 'map_max_height',
+                selector: { number: { min: 200, max: 2000, step: 50, mode: 'slider' } },
+              },
+              {
                 name: 'robot_size',
                 selector: { number: { min: 0.3, max: 3, step: 0.1, mode: 'slider' } },
               },
@@ -269,6 +273,7 @@ class ValetudoVacuumMapCard extends HTMLElement {
       robot_size: 'Robot icon size',
       charger_size: 'Charger icon size',
       path_width: 'Path line width',
+      map_max_height: 'Max map height (px)',
     };
 
     const helpers: Record<string, string> = {
@@ -279,6 +284,7 @@ class ValetudoVacuumMapCard extends HTMLElement {
       robot_size: 'Multiplier for the robot icon radius. Default: 1.0',
       charger_size: 'Multiplier for the charger icon radius. Default: 1.0',
       path_width: 'Multiplier for the robot travel path line width. Default: 1.0',
+      map_max_height: 'Cap the map display height (aspect ratio preserved). Leave empty for full width.',
     };
 
     return {

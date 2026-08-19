@@ -94,6 +94,8 @@ interface ValetudoMapCanvasProps {
   robotSize?: number;
   chargerSize?: number;
   pathWidth?: number;
+  /** Max display height of the map canvas in px (aspect preserved). Default: unset (fill width). */
+  mapMaxHeight?: number;
 }
 
 // Stored state for coordinate conversion (filled during render)
@@ -119,6 +121,7 @@ export function ValetudoMapCanvas({
   robotSize = 1,
   chargerSize = 1,
   pathWidth = 1,
+  mapMaxHeight,
 }: ValetudoMapCanvasProps) {
   const { t } = useTranslation(language);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1096,7 +1099,11 @@ export function ValetudoMapCanvas({
         className="valetudo-map-canvas__inner"
         style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
       >
-        <canvas ref={canvasRef} className="valetudo-map-canvas__canvas" />
+        <canvas
+          ref={canvasRef}
+          className="valetudo-map-canvas__canvas"
+          style={mapMaxHeight ? { maxHeight: mapMaxHeight, width: 'auto', maxWidth: '100%' } : undefined}
+        />
 
         {/* Desktop drag-to-draw zone */}
         {dragRect && <div className="valetudo-map-canvas__zone-drag" style={dragRect} />}

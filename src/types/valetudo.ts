@@ -46,6 +46,8 @@ export interface ValetudoHassConfig {
   robot_size?: number; // multiplier, default 1.0
   charger_size?: number; // multiplier, default 1.0
   path_width?: number; // multiplier, default 1.0
+  /** Max display height of the map canvas in px (aspect preserved). Default: unset (fill width). */
+  map_max_height?: number;
 }
 
 /** Resolved entity IDs after applying auto-derivation and overrides */
