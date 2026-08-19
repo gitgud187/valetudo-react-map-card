@@ -21,7 +21,8 @@
 
   &__inner {
     position: relative;
-    width: 100%;
+    width: fit-content;
+    margin: 0 auto;
     transform-origin: center center;
     will-change: transform;
   }
